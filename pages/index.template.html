@@ -115,7 +115,12 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-fam
 .drop-out { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .drop-out img, .drop-out canvas { width: 100%; display: block; border: 1px solid var(--rule); }
 @media (max-width: 640px) { .drop-out { grid-template-columns: minmax(0, 1fr); } }
-.how { display: grid; gap: 10px; padding-left: 1.1rem; margin: 0; max-width: 65ch; }
+/* the engine's traps: what it does, then what the profile does about it */
+.traps { display: grid; gap: 30px; }
+.trap { display: grid; gap: 10px; max-width: 46rem; min-width: 0; }
+.fix { display: grid; gap: 4px; border-left: 2px solid var(--accent); padding-left: 14px; }
+.refs { display: grid; gap: 12px; padding-left: 1.1rem; margin: 0; max-width: 65ch; }
+cite { font-style: italic; }
 footer { border-top: 1px solid var(--rule); padding-top: 18px; display: grid; gap: 8px; font-size: 0.9rem; color: var(--muted); }
 @media (prefers-reduced-motion: no-preference) { .plate canvas { transition: opacity 120ms ease; } }
 </style>
@@ -124,9 +129,11 @@ footer { border-top: 1px solid var(--rule); padding-top: 18px; display: grid; ga
   <header>
     <span class="label">ICC.1:2022 §10.16 · multiProcessElements · LittleCMS</span>
     <h1>iccnet</h1>
-    <p class="lede">These PNGs hold no picture. Each pixel stores its own coordinates, and the color
-      profile embedded in the file holds a small neural network. A color engine that runs the
-      profile paints a painting; your browser does not run it, and shows the coordinates.</p>
+    <p class="lede">These PNGs are gradients, and their color profiles are neural networks. Every
+      pixel stores its own position, and the profile holds a trained network written as matrices and
+      curves, the vocabulary profiles use to describe cameras and screens. A color engine that
+      converts the file runs the network on every pixel and paints a painting. Your browser skips
+      that part of the profile, so it shows the gradient.</p>
   </header>
 
   <section aria-labelledby="viewer-h">
@@ -161,27 +168,139 @@ footer { border-top: 1px solid var(--rule); padding-top: 18px; display: grid; ga
     <div class="placard" id="placard"></div>
   </section>
 
-  <section aria-labelledby="engines-h">
-    <h2 id="engines-h">One file, five engines</h2>
-    <p>The trio carrier, three tiles at blue = 32, 128 and 224, converted to sRGB by each engine on a Mac.
-      Each output is compared with LittleCMS evaluating the profile in double precision.</p>
-    <div class="engines" id="engines"></div>
+  <section aria-labelledby="machine-h">
+    <h2 id="machine-h">A machine made of matrices and curves</h2>
+    <p>When software shows an image that carries a color profile, it converts every pixel from the
+      image's colors to the screen's, through a fixed reference space called the profile connection
+      space (CIE XYZ or L*a*b* under a D50 illuminant). Since ICC.1:2010, profile version 4.3, a
+      profile can do its half of that conversion with a multiProcessElements pipeline, kept in four
+      DToB tags, one per rendering intent. The pipeline is a list of elements, each taking the
+      previous element's channels and producing its own, and there are three kinds.</p>
+    <div class="tags"><table>
+      <tr><th>Element</th><th>Computes</th><th>Stored as</th></tr>
+      <tr><td><code>matf</code>, matrix</td><td>y = Wx + b, from p channels to q</td><td>float32 W and b</td></tr>
+      <tr><td><code>cvst</code>, curve set</td><td>y<sub>i</sub> = f<sub>i</sub>(x<sub>i</sub>), one function per channel</td><td>a segmented curve per channel</td></tr>
+      <tr><td><code>clut</code>, lookup table</td><td>interpolation in a grid, inputs clamped to [0, 1]</td><td>float32 samples, not used here</td></tr>
+    </table></div>
+    <p>A curve splits the number line at breakpoints. Each piece is a formula, (ax + b)<sup>γ</sup> + c,
+      a·log<sub>10</sub>(bx<sup>γ</sup> + c) + d or a·b<sup>cx + d</sup> + e, or a run of evenly spaced
+      samples joined by straight lines. There are no loops, branches, variables or memory. An element
+      sees only its own pixel, and the number of steps is fixed. Values pass between elements as
+      float32, and the specification forbids clipping them, so a value can be −7 or 63 halfway
+      through and survive. The pipeline is a straight-line program from three numbers to three
+      numbers, run once per pixel.</p>
+    <p>A matrix followed by a curve set is a neural-network layer in which every neuron has an
+      activation of its own. Networks like that are universal even when narrow. With ReLU, width 6 can
+      approximate any continuous function from [0, 1]³ to three color channels
+      (<a href="https://arxiv.org/abs/1710.11278">Hanin and Sellke, 2017</a>), and width 8 suffices for
+      almost any activation (<a href="https://arxiv.org/abs/1905.08539">Kidger and Lyons, 2020</a>).
+      LittleCMS, the color engine in most open-source imaging software, reads at most 15 channels per
+      element, and the format allows any number of layers.</p>
+    <p>A pipeline sees one pixel and nothing else, so the image has to say where each pixel is. Red is
+      the column, green the row, and blue picks the painting. The profile computes color from
+      position, the way a coordinate network does
+      (<a href="https://doi.org/10.1007/s10710-007-9028-8">Stanley, 2007</a>). A <code>clut</code>
+      element could store one painting as a 255 × 255 table of about 1.5 MB. iccnet uses no tables
+      and computes three paintings in 71 KB.</p>
   </section>
 
   <section aria-labelledby="inside-h">
     <h2 id="inside-h">Inside the profile</h2>
-    <p>The D2B1 tag of the selected profile, element by element, read from the PNG above by this page.
-      D2B0 to D2B3 point at the same bytes. Pick an element to see its curves or its matrix.</p>
+    <p>Every element of the selected file's D2B1 tag, read from its PNG by this page. D2B0 to D2B3
+      point at the same bytes. The first two elements build the gate, and the last two hand the color
+      to the profile connection space. Pick an element to see its curves or its weights.</p>
     <div class="chain" id="chain" role="group" aria-label="Elements"></div>
     <div class="detail" id="detail"></div>
     <div class="tags"><table id="tags"></table></div>
   </section>
 
+  <section aria-labelledby="traps-h">
+    <h2 id="traps-h">Getting past the color engine</h2>
+    <p>A color engine chooses which tags to read, rewrites pipelines it thinks it can speed up, and
+      probes profiles with special colors. Each of these broke the picture at some point. Each is
+      checked by a test or a probe in the repository.</p>
+    <div class="traps">
+      <div class="trap">
+        <h3>It reads only the tag for the requested intent</h3>
+        <p>LittleCMS takes the DToB tag of the rendering intent it is asked for and never falls back
+          to another.</p>
+        <p class="fix"><span class="label">What the profile does</span>All four DToB tags point at
+          the same bytes, so one copy of the network serves every intent.</p>
+      </div>
+      <div class="trap">
+        <h3>It asks the older tags whether the profile works</h3>
+        <p>LittleCMS's intent check looks only at matrix and A2B tags, so a profile with DToB tags alone
+          supports nothing. By their source code, libvips and sharp then convert with a built-in sRGB,
+          Krita drops the profile, and GIMP and darktable route it away from LittleCMS.</p>
+        <p class="fix"><span class="label">What the profile does</span>It also describes plain sRGB,
+          once as a matrix with tone curves and once as A2B and B2A tables. Engines that skip DToB
+          read those and show the pixel values as they are, which is the gradient your browser
+          shows.</p>
+      </div>
+      <div class="trap">
+        <h3>It runs the network on black and rescales every color</h3>
+        <p>In the perceptual intent, LittleCMS compensates black points whenever the screen's profile
+          is v4. Because this profile has matrix tags, it evaluates the profile at RGB 0, 0, 0 and maps
+          the result to the screen's black. When that result is not black, each version treats it
+          differently.</p>
+        <div class="tags"><table>
+          <tr><th>LittleCMS</th><th>A "black" brighter than L* 50 becomes</th></tr>
+          <tr><td>2.14 and earlier</td><td>L* 50</td></tr>
+          <tr><td>2.15 to 2.17</td><td>0, ignored</td></tr>
+          <tr><td>2.18 and 2.19</td><td>0 above L* 95, otherwise L* 50</td></tr>
+        </table></div>
+        <p>An early version painted RGB 0, 0, 0 near-white. LittleCMS 2.17 ignored it. sharp's copy,
+          2.19, read it as a black point of L* 50 and darkened the whole picture by a mean of 59 code
+          values.</p>
+        <p class="fix"><span class="label">What the profile does</span>A gate channel is 1 where blue
+          is 0 and 0 elsewhere. It rides through every layer and is subtracted, times 1,000, just
+          before the sigmoid. RGB 0, 0, 0 now paints true black in every version, and codes 1 to 255
+          are untouched. The gate is why the hidden layers are 14 wide instead of 15.</p>
+      </div>
+      <div class="trap">
+        <h3>It turns integer pipelines into a lookup table</h3>
+        <p>On 8- and 16-bit pixels LittleCMS samples the whole transform at 33 × 33 × 33 points and
+          interpolates between them, one sample every 8 pixels. That suits the smooth transforms of
+          real devices. A painting turns to blocks, a mean of 8.6 code values off for the trio. Float
+          pixels are evaluated element by element, exactly.</p>
+        <p class="fix"><span class="label">What the profile does</span>Nothing can, because the
+          engine decides. ImageMagick converts in double precision and paints the picture exactly. The
+          “Through a 33-point table” button above shows what sharp and Pillow paint.</p>
+      </div>
+      <div class="trap">
+        <h3>Older versions clamp straight lines</h3>
+        <p>LittleCMS 2.14 and 2.15 evaluate (ax + b)<sup>γ</sup> + c as c whenever ax + b is negative,
+          even when γ = 1 and the formula is a plain line. Ubuntu 24.04 and Debian 12 ship 2.14, and
+          the first CI run there failed on a learned curve whose straight tail dipped below zero.</p>
+        <p class="fix"><span class="label">What the profile does</span>Each tail is written from the
+          end where it is zero, so its base never goes negative, and the curve turns constant beyond
+          the farthest any input can drive that neuron. Interval arithmetic over the input cube gives
+          that bound.</p>
+      </div>
+      <div class="trap">
+        <h3>The specification has a typo</h3>
+        <p>ICC.1:2022 Table 57 gives the curve set's signature ‘cvst’ as 6D666C74h, which spells
+          ‘mflt’.</p>
+        <p class="fix"><span class="label">What the profile does</span>It uses 63767374h, which does
+          spell ‘cvst’ and is what LittleCMS expects.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="engines-h">
+    <h2 id="engines-h">One file, five engines</h2>
+    <p>The trio file, three tiles at blue = 32, 128 and 224, converted to sRGB by each engine on an
+      Apple M4 with macOS 27. Each output is compared with LittleCMS evaluating the profile in double
+      precision.</p>
+    <div class="engines" id="engines"></div>
+  </section>
+
   <section aria-labelledby="capacity-h">
     <h2 id="capacity-h">What fourteen channels can draw</h2>
-    <p>LittleCMS reads matrices with at most 15 inputs and outputs, and the gate takes one, so every
-      hidden layer is 14 wide. A curve, though, can hold thousands of samples: learned curves carry
-      most of the picture.</p>
+    <p>Fifteen channels is a hard limit, and the gate takes one, so every hidden layer is 14 wide. A
+      curve can hold any number of samples, so the capacity goes into the activations. In the 8-layer
+      network, 7,168 of the 8,739 learned numbers are curve samples, and learned curves beat ReLU by
+      4.4 dB with matrices of the same shape.</p>
     <div class="grid" id="capacity"></div>
     <div class="tags"><table id="capacity-table"></table></div>
   </section>
@@ -196,22 +315,45 @@ footer { border-top: 1px solid var(--rule); padding-top: 18px; display: grid; ga
     </div>
   </section>
 
-  <section aria-labelledby="how-h">
-    <h2 id="how-h">How it works</h2>
-    <ol class="how">
-      <li>ICC v4 profiles can carry D2B tags of type multiProcessElements: a chain of matrices with
-        offsets and sets of per-channel curves, in float, never clipped between elements. A matrix
-        and a set of curves make one neural-network layer.</li>
-      <li>Activations are segmented curves: ReLU is two formula segments that meet at 0, and a learned
-        activation is one sampled segment of 64 points per neuron. The network ends in a sigmoid, the
-        sRGB curve and the sRGB-to-XYZ matrix, and the engine's conversion to the screen undoes the last two.</li>
-      <li>The other tags say plain sRGB. Engines that skip D2B tags (ColorSync, Chrome's skcms,
-        Firefox's qcms) use those and show the coordinates. LittleCMS reads D2B first, and so do
-        ImageMagick, sharp, libvips, Pillow, GIMP and Krita, which use it.</li>
-      <li>One channel is a gate that paints blue = 0 black. Black point compensation makes LittleCMS
-        evaluate the profile at RGB 0, 0, 0, and versions 2.14 to 2.19 disagree about what a color
-        there means.</li>
-    </ol>
+  <section aria-labelledby="prior-h">
+    <h2 id="prior-h">Prior work</h2>
+    <ul class="refs">
+      <li><strong>Programmable profiles.</strong> iccMAX adds calculator elements with conditionals
+        and variables (<a href="https://color.org/iccmax/">ICC.2:2023</a>), a language formalized by
+        <a href="https://sws.cs.dartmouth.edu/pubs/ketal22.pdf">Kothari et al.</a> (IEEE Security and
+        Privacy Workshops 2022). iccnet uses only ICC.1's matrices and curves.</li>
+      <li><strong>Color engines that reveal content.</strong> Morovič et al.,
+        <a href="https://library.imaging.org/cic/articles/18/1/art00055"><cite>Color Scrambling for
+        Secure Digital Content Distribution</cite></a> (Color and Imaging Conference 2010), make a pair
+        of profiles act as keys. The ICC's <a href="https://www.color.org/version4html.xalter">version 4
+        test page</a> looks different on systems without v4 support, and
+        <a href="https://github.com/derenrich/hdr-steganography">hdr-steganography</a> (Erenrich, 2025)
+        shows a second picture on HDR displays.</li>
+      <li><strong>Networks and color tables.</strong>
+        <a href="https://patents.google.com/patent/US6480299B1/en">Drakopoulos and Subbarayan</a>
+        (US 6,480,299, filed 1998), <a href="https://arxiv.org/abs/2009.14468">Zeng et al.</a>
+        (IEEE TPAMI 2020), <a href="https://openaccess.thecvf.com/content/CVPR2021/html/Jo_Practical_Single-Image_Super-Resolution_Using_Look-Up_Table_CVPR_2021_paper.html">Jo
+        and Kim</a> (CVPR 2021) and <a href="https://arxiv.org/abs/2306.11920">NILUT</a> (Conde et al.,
+        AAAI 2024) turn networks into color tables or tables into networks.</li>
+      <li><strong>Coordinate networks.</strong> CPPNs
+        (<a href="https://doi.org/10.1007/s10710-007-9028-8">Stanley, 2007</a>), compiled into shaders
+        by <a href="https://wxs.ca/research/cppn-to-glsl/">Snelgrove and Tesfaldet</a> (2018); SIREN
+        (<a href="https://arxiv.org/abs/2006.09661">Sitzmann et al.</a>, NeurIPS 2020); Fourier
+        features (<a href="https://arxiv.org/abs/2006.10739">Tancik et al.</a>, NeurIPS 2020).</li>
+      <li><strong>Learned activations.</strong> Piecewise-linear units learned per neuron
+        (<a href="https://arxiv.org/abs/1412.6830">Agostinelli et al.</a>, ICLR 2015 workshop) and
+        learned functions on every edge (<a href="https://arxiv.org/abs/2404.19756">KAN</a>, Liu et
+        al., ICLR 2025).</li>
+      <li><strong>Programs in other files.</strong>
+        <a href="https://github.com/fuglede/llama.ttf">llama.ttf</a> (Jørgensen, 2024) runs a language
+        model in a font through HarfBuzz's WebAssembly shaper,
+        <a href="https://github.com/ading2210/doompdf">doompdf</a> (2025) runs Doom on a PDF's
+        JavaScript, and <a href="https://github.com/fMindstormer/fenet">fenet</a>, by iccnet's author,
+        reads handwritten digits with SVG filters.</li>
+    </ul>
+    <p class="muted">A search of the web, GitHub code, Hacker News, arXiv and patents in October 2026
+      found no published neural network stored in an ICC profile and run by an unmodified color
+      engine. The repository's README has the full references.</p>
   </section>
 
   <footer>
@@ -319,8 +461,8 @@ function setMode(mode) {
   $('mode-exact').setAttribute('aria-pressed', mode === 'exact');
   $('mode-table').setAttribute('aria-pressed', mode === 'table');
   $('mode-note').textContent = mode === 'exact'
-    ? 'What ImageMagick\u2019s -profile produces: on floating-point pixels LittleCMS evaluates every element for every pixel. RawTherapee and darktable convert this way too, by their source code.'
-    : 'What sharp and libvips produce by default: on 8- and 16-bit pixels LittleCMS samples the profile at 33 × 33 × 33 points and interpolates. Pillow\u2019s 8-bit path also fits curves to the gray axis first, and loses more. By their source code, GIMP\u2019s and Krita\u2019s displays show a table too.';
+    ? 'What ImageMagick\u2019s -profile produces. On float pixels LittleCMS runs every element on every pixel, and by their source code darktable and RawTherapee convert this way too.'
+    : 'What sharp, libvips and Pillow produce by default. On 8- and 16-bit pixels LittleCMS samples the whole transform at 33 × 33 × 33 points, one sample every 8 pixels, and interpolates between them. By their source code, GIMP\u2019s and Krita\u2019s displays show a table too.';
   show();
 }
 
