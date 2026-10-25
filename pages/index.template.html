@@ -1,0 +1,482 @@
+<title>Paintings in a Profile</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
+<style>
+/* Layout: one reading column. The hero is a pair of matched plates, the file as the browser
+   shows it beside the same file as its profile paints it, with the controls under them. */
+:root {
+  --bg: #eceef1; --surface: #ffffff; --ink: #15171c; --muted: #596172; --rule: #d3d8df;
+  --accent: #2c46a6; --accent-soft: #dfe5f7; --exact: #1d7a4c; --table: #9a6400; --ignored: #6b7280;
+  --display: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+  --sans: 'IBM Plex Sans', -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1014; --surface: #171a20; --ink: #e7e9ee; --muted: #9aa2b1; --rule: #2a2f39;
+    --accent: #93a6ff; --accent-soft: #1f2640; --exact: #4cc38a; --table: #e0a83a; --ignored: #9aa2b1;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1014; --surface: #171a20; --ink: #e7e9ee; --muted: #9aa2b1; --rule: #2a2f39;
+  --accent: #93a6ff; --accent-soft: #1f2640; --exact: #4cc38a; --table: #e0a83a; --ignored: #9aa2b1;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font: 16px/1.55 var(--sans); }
+.wrap {
+  max-width: 66rem; margin: 0 auto; display: grid; gap: 64px;
+  padding-block: 40px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { font-family: var(--display); font-weight: 400; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.6rem, 6vw, 4rem); line-height: 1; letter-spacing: -0.01em; }
+h2 { font-size: 1.9rem; line-height: 1.15; }
+h3 { font-size: 1.25rem; }
+p { margin: 0; max-width: 65ch; }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+a { color: var(--accent); }
+.label { font: 500 0.72rem/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+section { display: grid; gap: 20px; }
+header { display: grid; gap: 18px; }
+.lede { font-size: 1.15rem; }
+
+/* the two plates */
+.plates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.plate { display: grid; gap: 10px; min-width: 0; }
+.plate .frame { background: var(--surface); border: 1px solid var(--rule); padding: 10px; }
+.plate img, .plate canvas { display: block; width: 100%; aspect-ratio: 1; max-width: 100%; image-rendering: auto; }
+.plate .caption { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+@media (max-width: 640px) { .plates { grid-template-columns: minmax(0, 1fr); } }
+
+.controls { display: grid; gap: 14px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font: 500 0.9rem/1 var(--sans); padding: 9px 13px; border: 1px solid var(--rule);
+  background: var(--surface); color: var(--ink); cursor: pointer; border-radius: 999px;
+}
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+.chip:focus-visible, input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--rule); background: var(--surface); }
+.seg button { font: 500 0.85rem/1 var(--sans); padding: 9px 12px; border: 0; background: none; color: var(--ink); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.slider { display: grid; gap: 6px; flex: 1 1 260px; min-width: 0; }
+.slider input { width: 100%; accent-color: var(--accent); }
+.ticks { position: relative; height: 14px; }
+.ticks span { position: absolute; transform: translateX(-50%); font: 0.7rem/1 var(--mono); color: var(--muted); }
+
+/* museum label */
+.placard { border-left: 2px solid var(--ink); padding: 2px 0 2px 14px; display: grid; gap: 4px; max-width: 46rem; }
+.placard .title { font: italic 400 1.2rem/1.3 var(--display); }
+.placard .medium { font-size: 0.92rem; }
+
+/* engines */
+.engines { display: grid; gap: 22px; }
+.engine { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 16px; align-items: start; }
+.engine img { width: 100%; max-width: 100%; display: block; border: 1px solid var(--rule); }
+.engine .who { display: grid; gap: 6px; }
+.state { display: inline-block; font: 500 0.72rem/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 5px 7px; border: 1px solid currentColor; justify-self: start; }
+.state.exact { color: var(--exact); } .state.table { color: var(--table); } .state.ignored { color: var(--ignored); }
+@media (max-width: 640px) { .engine { grid-template-columns: minmax(0, 1fr); } }
+
+/* inside the profile */
+.chain { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
+.el {
+  flex: 0 0 auto; font: 500 0.78rem/1.25 var(--mono); padding: 8px 9px; border: 1px solid var(--rule);
+  background: var(--surface); color: var(--ink); cursor: pointer; text-align: left;
+}
+.el small { display: block; color: var(--muted); font-weight: 400; }
+.el[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
+.detail { display: grid; gap: 10px; }
+.curves { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.curves canvas, .heat { width: 100%; display: block; background: var(--surface); border: 1px solid var(--rule); }
+.heat { max-width: 30rem; image-rendering: pixelated; }
+.tags { overflow-x: auto; }
+table { border-collapse: collapse; font-size: 0.9rem; }
+th, td { text-align: left; padding: 6px 14px 6px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font: 500 0.72rem/1.2 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 0.85rem; }
+
+/* capacity */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+.grid figure { margin: 0; display: grid; gap: 6px; }
+.grid img { width: 100%; display: block; border: 1px solid var(--rule); }
+.grid figcaption { font-size: 0.82rem; line-height: 1.35; }
+
+/* drop zone */
+.drop { border: 1px dashed var(--muted); background: var(--surface); padding: 22px; display: grid; gap: 12px; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop-out { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.drop-out img, .drop-out canvas { width: 100%; display: block; border: 1px solid var(--rule); }
+@media (max-width: 640px) { .drop-out { grid-template-columns: minmax(0, 1fr); } }
+.how { display: grid; gap: 10px; padding-left: 1.1rem; margin: 0; max-width: 65ch; }
+footer { border-top: 1px solid var(--rule); padding-top: 18px; display: grid; gap: 8px; font-size: 0.9rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .plate canvas { transition: opacity 120ms ease; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="label">ICC.1:2022 §10.16 · multiProcessElements · LittleCMS</span>
+    <h1>iccnet</h1>
+    <p class="lede">These PNGs hold no picture. Each pixel stores its own coordinates, and the color
+      profile embedded in the file holds a small neural network. A color engine that runs the
+      profile paints a painting; your browser does not run it, and shows the coordinates.</p>
+  </header>
+
+  <section aria-labelledby="viewer-h">
+    <span id="viewer-h" class="label">The gallery</span>
+    <div class="controls">
+      <div class="chips" id="gallery" role="group" aria-label="Profile"></div>
+    </div>
+    <div class="plates">
+      <div class="plate">
+        <div class="caption"><span class="label">The file, as your browser shows it</span><span class="mono muted" id="file-size"></span></div>
+        <div class="frame"><img id="file-img" alt="The carrier PNG as this browser displays it: a gradient of its coordinate pixels"></div>
+      </div>
+      <div class="plate">
+        <div class="caption"><span class="label">The same file, profile evaluated</span><span class="mono muted" id="render-time"></span></div>
+        <div class="frame"><canvas id="paint" width="256" height="256" aria-label="The carrier painted by its profile"></canvas></div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="row">
+        <div class="seg" role="group" aria-label="Evaluation">
+          <button id="mode-exact" aria-pressed="true">Every pixel, in float</button>
+          <button id="mode-table" aria-pressed="false">Through a 33-point table</button>
+        </div>
+        <div class="slider">
+          <label for="code" class="label">Blue channel, the latent code: <span id="code-out">128</span></label>
+          <input id="code" type="range" min="1" max="255" value="128">
+          <div class="ticks" id="ticks"></div>
+        </div>
+      </div>
+      <p class="muted" id="mode-note"></p>
+    </div>
+    <div class="placard" id="placard"></div>
+  </section>
+
+  <section aria-labelledby="engines-h">
+    <h2 id="engines-h">One file, five engines</h2>
+    <p>The trio carrier, three tiles at blue = 32, 128 and 224, converted to sRGB by each engine on a Mac.
+      Each output is compared with LittleCMS evaluating the profile in double precision.</p>
+    <div class="engines" id="engines"></div>
+  </section>
+
+  <section aria-labelledby="inside-h">
+    <h2 id="inside-h">Inside the profile</h2>
+    <p>The D2B1 tag of the selected profile, element by element, read from the PNG above by this page.
+      D2B0 to D2B3 point at the same bytes. Pick an element to see its curves or its matrix.</p>
+    <div class="chain" id="chain" role="group" aria-label="Elements"></div>
+    <div class="detail" id="detail"></div>
+    <div class="tags"><table id="tags"></table></div>
+  </section>
+
+  <section aria-labelledby="capacity-h">
+    <h2 id="capacity-h">What fourteen channels can draw</h2>
+    <p>LittleCMS reads matrices with at most 15 inputs and outputs, and the gate takes one, so every
+      hidden layer is 14 wide. A curve, though, can hold thousands of samples: learned curves carry
+      most of the picture.</p>
+    <div class="grid" id="capacity"></div>
+    <div class="tags"><table id="capacity-table"></table></div>
+  </section>
+
+  <section aria-labelledby="drop-h">
+    <h2 id="drop-h">Open a file</h2>
+    <div class="drop" id="drop">
+      <p>Drop a PNG with an embedded profile, or an .icc file, or <label for="file-in" style="color: var(--accent); cursor: pointer; text-decoration: underline;">choose one</label>.
+        The page lists its tags and, if a PNG's profile has a DToB tag, paints it.</p>
+      <input id="file-in" type="file" accept=".png,.icc,.icm,image/png" hidden>
+      <div id="drop-result" class="detail"></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="how-h">
+    <h2 id="how-h">How it works</h2>
+    <ol class="how">
+      <li>ICC v4 profiles can carry D2B tags of type multiProcessElements: a chain of matrices with
+        offsets and sets of per-channel curves, in float, never clipped between elements. A matrix
+        and a set of curves make one neural-network layer.</li>
+      <li>Activations are segmented curves: ReLU is two formula segments that meet at 0, and a learned
+        activation is one sampled segment of 64 points per neuron. The network ends in a sigmoid, the
+        sRGB curve and the sRGB-to-XYZ matrix, and the engine's conversion to the screen undoes the last two.</li>
+      <li>The other tags say plain sRGB. Engines that skip D2B tags (ColorSync, Chrome's skcms,
+        Firefox's qcms) use those and show the coordinates. LittleCMS reads D2B first, and so do
+        ImageMagick, sharp, libvips, Pillow, GIMP and Krita, which use it.</li>
+      <li>One channel is a gate that paints blue = 0 black. Black point compensation makes LittleCMS
+        evaluate the profile at RGB 0, 0, 0, and versions 2.14 to 2.19 disagree about what a color
+        there means.</li>
+    </ol>
+  </section>
+
+  <footer>
+    <span>Code, probes and the profiles: <a href="https://github.com/fMindstormer/iccnet">github.com/fMindstormer/iccnet</a> (MIT). Paintings: Leonardo, Vermeer and Hokusai, public domain, via Wikimedia Commons.</span>
+    <span id="foot-note"></span>
+  </footer>
+</div>
+
+<script>
+/*__ICCNET_JS__*/
+const DATA = /*__DATA__*/null;
+
+const $ = (id) => document.getElementById(id);
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const rgbOf = (name) => { const h = css(name).replace('#', ''); return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)); };
+const state = { item: DATA.gallery[0].id, code: DATA.gallery[0].codes[0], mode: 'exact', element: null };
+const cache = new Map();
+
+async function load(id) {
+  if (!cache.has(id)) {
+    const bytes = new Uint8Array(await (await fetch(`gallery/${id}.png`)).arrayBuffer());
+    const png = await readPNG(bytes);
+    const stages = readStages(png.icc, 'D2B1');
+    cache.set(id, { bytes, png, stages, fn: compile(stages), profile: readProfile(png.icc) });
+  }
+  return cache.get(id);
+}
+
+// PNG writer for the carrier shown on the left: R = column, G = row, B = code, profile embedded
+const CRC = new Uint32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+function crc32(b) { let c = 0xffffffff; for (const x of b) c = CRC[(c ^ x) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+async function deflate(bytes) {
+  const s = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate'));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+function chunk(kind, data) {
+  const out = new Uint8Array(12 + data.length), v = new DataView(out.buffer);
+  v.setUint32(0, data.length); out.set([...kind].map((c) => c.charCodeAt(0)), 4); out.set(data, 8);
+  v.setUint32(8 + data.length, crc32(out.subarray(4, 8 + data.length)));
+  return out;
+}
+function carrierRGB(code, side = 256) {
+  const rgb = new Uint8Array(side * side * 3);
+  for (let y = 0; y < side; y++) for (let x = 0; x < side; x++) {
+    const o = (y * side + x) * 3;
+    rgb[o] = Math.floor(x * 255 / (side - 1)); rgb[o + 1] = Math.floor(y * 255 / (side - 1)); rgb[o + 2] = code;
+  }
+  return rgb;
+}
+async function carrierPNG(rgb, side, icc) {
+  const raw = new Uint8Array(side * (side * 3 + 1)), w = side * 3;
+  for (let y = 0; y < side; y++) {
+    const o = y * (w + 1), row = y * w;
+    raw[o] = 1;                // Sub filter: each byte minus the same channel one pixel left
+    for (let i = 0; i < w; i++) raw[o + 1 + i] = (rgb[row + i] - (i >= 3 ? rgb[row + i - 3] : 0)) & 255;
+  }
+  const ihdr = new Uint8Array(13), hv = new DataView(ihdr.buffer);
+  hv.setUint32(0, side); hv.setUint32(4, side); ihdr.set([8, 2, 0, 0, 0], 8);
+  const name = [...'iccnet'].map((c) => c.charCodeAt(0));
+  const iccp = new Uint8Array([...name, 0, 0, ...await deflate(icc)]);
+  const parts = [new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('iCCP', iccp),
+    chunk('IDAT', await deflate(raw)), chunk('IEND', new Uint8Array(0))];
+  return new Blob(parts, { type: 'image/png' });
+}
+
+let fileURL = null, ticket = 0;
+async function show() {
+  const my = ++ticket, item = DATA.gallery.find((g) => g.id === state.item), d = await load(state.item);
+  if (my !== ticket) return;
+  const rgb = carrierRGB(state.code);
+  const t0 = performance.now();
+  const ctx = $('paint').getContext('2d'), img = ctx.createImageData(256, 256);
+  paint(d.fn, rgb, img.data, state.mode === 'table' ? 33 : 0);
+  ctx.putImageData(img, 0, 0);
+  $('render-time').textContent = `${Math.round(performance.now() - t0)} ms`;
+  try {
+    const blob = await carrierPNG(rgb, 256, d.png.icc);
+    if (my !== ticket) return;
+    if (fileURL) URL.revokeObjectURL(fileURL);
+    fileURL = URL.createObjectURL(blob);
+    $('file-img').src = fileURL;
+    $('file-size').textContent = `PNG, ${(blob.size / 1024).toFixed(0)} KB`;
+  } catch (e) {
+    $('file-img').src = `gallery/${state.item}.png`;
+    $('file-size').textContent = 'gallery file';
+  }
+  $('code-out').textContent = state.code;
+  const near = item.paintings.find((p) => p.code === state.code);
+  $('placard').innerHTML = placard(item, near);
+}
+
+function placard(item, p) {
+  const kb = (item.profile_bytes / 1024).toFixed(0);
+  const medium = `${item.parameters.toLocaleString('en')} learned numbers in a ${kb} KB ICC profile, ${item.act === 'relu' ? 'ReLU' : item.act === 'sin' ? 'sine' : 'learned curve'} activations, ${item.depth} layers of 14`;
+  if (!p) return `<span class="label">Blue = ${state.code}</span><span class="title">Between the paintings</span>
+    <span class="medium">No painting was trained at this code. What you see is the network's own continuation. ${medium}.</span>`;
+  const a = DATA.paintings[p.painting];
+  return `<span class="label">Blue = ${p.code}</span><span class="title">${a.title}</span>
+    <span class="muted">${a.artist}, ${a.date}</span>
+    <span class="medium">${medium}. ${p.psnr.toFixed(1)} dB against the 256 × 256 painting; ${p.psnr_table_16bit.toFixed(1)} dB through the 33-point table.</span>`;
+}
+
+function setMode(mode) {
+  state.mode = mode;
+  $('mode-exact').setAttribute('aria-pressed', mode === 'exact');
+  $('mode-table').setAttribute('aria-pressed', mode === 'table');
+  $('mode-note').textContent = mode === 'exact'
+    ? 'What ImageMagick\u2019s -profile produces: on floating-point pixels LittleCMS evaluates every element for every pixel. RawTherapee and darktable convert this way too, by their source code.'
+    : 'What sharp and libvips produce by default: on 8- and 16-bit pixels LittleCMS samples the profile at 33 × 33 × 33 points and interpolates. Pillow\u2019s 8-bit path also fits curves to the gray axis first, and loses more. By their source code, GIMP\u2019s and Krita\u2019s displays show a table too.';
+  show();
+}
+
+function selectItem(id) {
+  state.item = id;
+  const item = DATA.gallery.find((g) => g.id === id);
+  state.code = item.codes[0];
+  $('code').value = state.code;
+  for (const b of $('gallery').children) b.setAttribute('aria-pressed', b.dataset.id === id);
+  $('ticks').innerHTML = item.codes.map((c) => `<span style="left:${((c - 1) / 254) * 100}%">${c}</span>`).join('');
+  show();
+  inside();
+}
+
+// inside the profile
+function describe(stages) {
+  const n = stages.length;
+  return stages.map((s, i) => {
+    let note = s.kind === 'matf' ? 'matrix' : 'curves';
+    if (i === 0) note = 'copies blue for the gate';
+    else if (i === 1) note = 'the gate: 1 where blue is 0';
+    else if (i === n - 3) note = 'sigmoid';
+    else if (i === n - 2) note = 'sRGB decoding';
+    else if (i === n - 1) note = 'sRGB to XYZ';
+    else if (i === n - 4) note = 'output layer';
+    else if (s.kind === 'matf') note = `layer ${Math.ceil((i - 1) / 2)}`;
+    else note = `activations ${Math.ceil((i - 2) / 2)}`;
+    const shape = s.kind === 'matf' ? `${s.p}→${s.q}` : `${s.p}`;
+    return { i, label: `${s.kind} ${shape}`, note };
+  });
+}
+
+async function inside() {
+  const d = await load(state.item), items = describe(d.stages);
+  if (state.element === null || state.element >= d.stages.length) state.element = 3;
+  $('chain').innerHTML = items.map((e) => `<button class="el" data-i="${e.i}" aria-pressed="${e.i === state.element}">${e.label}<small>${e.note}</small></button>`).join('');
+  for (const b of $('chain').children) b.onclick = () => { state.element = +b.dataset.i; inside(); };
+  detail(d.stages[state.element], items[state.element]);
+  const shared = new Map();
+  $('tags').innerHTML = `<tr><th>Tag</th><th>Type</th><th class="num">Bytes</th><th class="num">Offset</th><th>Role</th></tr>` +
+    d.profile.tags.map((t) => {
+      const first = shared.get(t.offset); if (!first) shared.set(t.offset, t.sig);
+      const role = t.sig.startsWith('D2B') ? 'the network, then sRGB to XYZ' : t.sig.startsWith('A2B') || t.sig.startsWith('B2A') || /^[rgb](XYZ|TRC)$/.test(t.sig) ? 'plain sRGB, for engines that skip D2B' : '';
+      return `<tr><td class="mono">${t.sig}</td><td class="mono">${t.type}</td><td class="num">${t.size.toLocaleString('en')}</td><td class="num">${t.offset}</td><td>${first ? `same bytes as ${first}` : role}</td></tr>`;
+    }).join('');
+}
+
+function curveRange(segs) {
+  const b = segs.map((s) => s.x0).filter(Number.isFinite);
+  if (!b.length) return [-1, 1];
+  const lo = Math.min(...b), hi = Math.max(...b), pad = Math.max(0.5, (hi - lo) * 0.25);
+  return [lo - pad, hi + pad];
+}
+
+function detail(s, info) {
+  const box = $('detail');
+  if (s.kind === 'cvst') {
+    box.innerHTML = `<span class="label">${info.label} · ${info.note}</span><div class="curves" id="curve-grid"></div>`;
+    const grid = $('curve-grid'), ink = css('--accent'), rule = css('--rule'), muted = css('--muted');
+    s.curves.forEach((segs) => {
+      const c = document.createElement('canvas'), w = 236, h = 150;
+      c.width = w; c.height = h; grid.appendChild(c);
+      const g = c.getContext('2d'), [lo, hi] = curveRange(segs), xs = [], ys = [];
+      for (let k = 0; k <= 200; k++) { const x = lo + (hi - lo) * k / 200; xs.push(x); ys.push(evalCurve(segs, x)); }
+      let ymin = Math.min(...ys), ymax = Math.max(...ys);
+      if (ymax - ymin < 1e-9) { ymin -= 1; ymax += 1; }
+      const X = (x) => 8 + (x - lo) / (hi - lo) * (w - 16), Y = (y) => h - 10 - (y - ymin) / (ymax - ymin) * (h - 20);
+      g.strokeStyle = rule; g.lineWidth = 1;
+      if (lo < 0 && hi > 0) { g.beginPath(); g.moveTo(X(0), 4); g.lineTo(X(0), h - 4); g.stroke(); }
+      if (ymin < 0 && ymax > 0) { g.beginPath(); g.moveTo(4, Y(0)); g.lineTo(w - 4, Y(0)); g.stroke(); }
+      g.strokeStyle = ink; g.lineWidth = 2.5; g.beginPath();
+      xs.forEach((x, k) => (k ? g.lineTo(X(x), Y(ys[k])) : g.moveTo(X(x), Y(ys[k]))));
+      g.stroke();
+      g.fillStyle = muted; g.font = '18px ' + css('--mono');
+      g.fillText(`${segs.length} seg`, 10, 22);
+    });
+  } else {
+    box.innerHTML = `<span class="label">${info.label} · ${info.note} · blue positive, amber negative; the last column is the offset</span><canvas class="heat" id="heat"></canvas>`;
+    const c = $('heat'); c.width = s.p + 1; c.height = s.q;
+    const g = c.getContext('2d'), img = g.createImageData(s.p + 1, s.q);
+    const m = Math.max(...s.W.map(Math.abs), ...s.b.map(Math.abs)) || 1;
+    const zero = rgbOf('--surface'), pos = rgbOf('--accent'), neg = rgbOf('--table');
+    for (let i = 0; i < s.q; i++) for (let j = 0; j <= s.p; j++) {
+      const v = j < s.p ? s.W[i * s.p + j] : s.b[i], t = Math.sqrt(Math.abs(v) / m), col = v >= 0 ? pos : neg, o = (i * (s.p + 1) + j) * 4;
+      for (let k = 0; k < 3; k++) img.data[o + k] = Math.round(zero[k] + (col[k] - zero[k]) * t);
+      img.data[o + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    c.style.aspectRatio = `${s.p + 1} / ${s.q}`;
+  }
+}
+
+// engines, capacity
+function engines() {
+  $('engines').innerHTML = DATA.engines.map((e) => `<div class="engine"><div class="who"><span>${e.label}</span>
+    <span class="state ${e.kind}">${{ exact: 'exact', table: 'table', ignored: 'not evaluated' }[e.kind]}</span>
+    <span class="mono muted">${e.kind === 'ignored' ? 'shows the carrier pixels as sRGB' : `mean ${e.mean.toFixed(1)}, max ${e.max.toFixed(e.max < 10 ? 1 : 0)} code values`}</span>
+    <span class="mono muted">${e.version || ''}</span></div>
+    <img src="engines/${e.id}.png" alt="${e.label}: the trio carrier as converted by this engine" loading="lazy"></div>`).join('');
+  $('foot-note').textContent = DATA.note;
+}
+
+function capacity() {
+  const rows = DATA.capacity;
+  $('capacity').innerHTML = `<figure><img src="capacity/target.png" alt="Mona Lisa, the painting the networks learn, 256 by 256"><figcaption>The painting, 256 × 256</figcaption></figure>` +
+    rows.map((r) => `<figure><img src="capacity/${r.name}.png" alt="${r.what}" loading="lazy"><figcaption>${r.what}<br><span class="mono muted">${r.psnr.toFixed(1)} dB</span></figcaption></figure>`).join('');
+  $('capacity-table').innerHTML = `<tr><th>Network</th><th class="num">Parameters</th><th class="num">Profile</th><th class="num">PSNR</th><th class="num">Through the table</th></tr>` +
+    rows.map((r) => `<tr><td>${r.what}</td><td class="num">${r.parameters.toLocaleString('en')}</td><td class="num">${(r.profile_bytes / 1024).toFixed(0)} KB</td><td class="num">${r.psnr.toFixed(2)} dB</td><td class="num">${r.psnr_table.toFixed(2)} dB</td></tr>`).join('');
+}
+
+// open a file
+async function openFile(file) {
+  const out = $('drop-result'), bytes = new Uint8Array(await file.arrayBuffer());
+  try {
+    let icc = bytes, png = null;
+    if (bytes[0] === 0x89 && bytes[1] === 0x50) {
+      png = await readPNG(bytes);
+      if (!png.icc) throw new Error('This PNG has no embedded profile (no iCCP chunk).');
+      icc = png.icc;
+    }
+    const p = readProfile(icc), dtob = p.tags.find((t) => t.sig === 'D2B1' || t.sig === 'D2B0');
+    let html = `<span class="label">${file.name} · ICC ${p.version} · ${p.cls} · ${p.space} → ${p.pcs} · ${p.size.toLocaleString('en')} bytes</span>
+      <div class="tags"><table><tr><th>Tag</th><th>Type</th><th class="num">Bytes</th></tr>${p.tags.map((t) => `<tr><td class="mono">${t.sig}</td><td class="mono">${t.type}</td><td class="num">${t.size.toLocaleString('en')}</td></tr>`).join('')}</table></div>`;
+    if (png && dtob && png.width * png.height <= 2048 * 2048) {
+      html += `<div class="drop-out"><div><span class="label">As your browser shows it</span><img id="drop-img" alt="The dropped PNG as this browser displays it"></div>
+        <div><span class="label">${dtob.sig} evaluated in float</span><canvas id="drop-canvas" aria-label="The dropped PNG painted by its D2B tag"></canvas></div></div>`;
+    } else if (png) html += `<p class="muted">No D2B0 or D2B1 tag: color engines convert this file with its other tags.</p>`;
+    out.innerHTML = html;
+    if (png && dtob && png.width * png.height <= 2048 * 2048) {
+      $('drop-img').src = URL.createObjectURL(file);
+      const c = $('drop-canvas'); c.width = png.width; c.height = png.height;
+      const ctx = c.getContext('2d'), img = ctx.createImageData(png.width, png.height);
+      paint(compile(readStages(icc, dtob.sig)), png.rgb, img.data, 0);
+      ctx.putImageData(img, 0, 0);
+    }
+  } catch (e) {
+    out.innerHTML = `<p>Could not read ${file.name}: ${e.message}</p>`;
+  }
+}
+
+function start() {
+  $('gallery').innerHTML = DATA.gallery.map((g) => `<button class="chip" data-id="${g.id}" aria-pressed="false">${g.name}</button>`).join('');
+  for (const b of $('gallery').children) b.onclick = () => selectItem(b.dataset.id);
+  $('mode-exact').onclick = () => setMode('exact');
+  $('mode-table').onclick = () => setMode('table');
+  let pending = null;
+  $('code').oninput = (e) => { state.code = +e.target.value; $('code-out').textContent = state.code; if (!pending) pending = requestAnimationFrame(() => { pending = null; show(); }); };
+  const drop = $('drop');
+  drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) openFile(e.dataTransfer.files[0]); };
+  $('file-in').onchange = (e) => e.target.files[0] && openFile(e.target.files[0]);
+  engines();
+  capacity();
+  setMode('exact');
+  selectItem(state.item);
+}
+start();
+</script>

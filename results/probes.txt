@@ -1,0 +1,71 @@
+# Output of the probes on an Apple M4, macOS 27.0.1, 2026-10-25.
+# LittleCMS 2.17 is Homebrew's; 2.19 is the copy inside pyvips-binary's libvips (LCMS2=.../libvips.42.dylib).
+
+## python probe/spike.py
+LittleCMS 2170, 327680 inputs, profile 18276 bytes; errors in 8-bit code values
+  PCS (XYZ), double              max   0.000  mean  0.0000  over 1:   0.0 %
+  sRGB, double                   max   0.138  mean  0.0192  over 1:   0.0 %
+  sRGB, 16-bit, default flags    max  72.265  mean  0.0422  over 1:   0.2 %
+  sRGB, 16-bit, NOOPTIMIZE       max   0.139  mean  0.0193  over 1:   0.0 %
+  sRGB, 8-bit, default flags     max  93.446  mean 13.8015  over 1:  48.3 %
+  sRGB, 8-bit, NOOPTIMIZE        max   0.634  mean  0.2282  over 1:   0.0 %
+
+LittleCMS 2190, 327680 inputs, profile 18276 bytes; errors in 8-bit code values
+  PCS (XYZ), double              max   0.000  mean  0.0000  over 1:   0.0 %
+  sRGB, double                   max   0.138  mean  0.0192  over 1:   0.0 %
+  sRGB, 16-bit, default flags    max  72.265  mean  0.0422  over 1:   0.2 %
+  sRGB, 16-bit, NOOPTIMIZE       max   0.139  mean  0.0193  over 1:   0.0 %
+  sRGB, 8-bit, default flags     max  93.446  mean 13.8015  over 1:  48.3 %
+  sRGB, 8-bit, NOOPTIMIZE        max   0.634  mean  0.2282  over 1:   0.0 %
+
+## python probe/tables.py
+LittleCMS 2170: the spike, per-pixel max over channels, 8-bit code values
+  16-bit, default                            max  72.26  mean  0.086  over 1:   0.6 %
+  16-bit, NOWHITEONWHITEFIXUP                max   2.11  mean  0.080  over 1:   0.5 %
+  16-bit, HIGHRESPRECALC (49 points)         max  67.09  mean  0.062  over 1:   0.1 %
+  8-bit, default                             max  93.45  mean 35.131  over 1:  88.5 %
+  8-bit, FORCE_CLUT                          max  72.50  mean  0.381  over 1:   0.8 %
+  8-bit, FORCE_CLUT + NOWHITEONWHITEFIXUP    max   2.44  mean  0.375  over 1:   0.7 %
+sine probe (20 cycles along x), written to probe/sine.png
+  double                                     max   0.44  mean  0.054  over 1:   0.0 %
+  16-bit, default                            max 165.75  mean 72.718  over 1:  98.4 %
+  8-bit, default                             max 165.83  mean 72.719  over 1:  97.7 %
+  8-bit, NOOPTIMIZE                          max   0.85  mean  0.237  over 1:   0.0 %
+
+LittleCMS 2190: the spike, per-pixel max over channels, 8-bit code values
+  16-bit, default                            max  72.26  mean  0.086  over 1:   0.6 %
+  16-bit, NOWHITEONWHITEFIXUP                max   2.11  mean  0.080  over 1:   0.5 %
+  16-bit, HIGHRESPRECALC (49 points)         max  67.09  mean  0.062  over 1:   0.1 %
+  8-bit, default                             max  93.45  mean 35.131  over 1:  88.5 %
+  8-bit, FORCE_CLUT                          max  72.50  mean  0.381  over 1:   0.8 %
+  8-bit, FORCE_CLUT + NOWHITEONWHITEFIXUP    max   2.44  mean  0.375  over 1:   0.7 %
+sine probe (20 cycles along x), written to probe/sine.png
+  double                                     max   0.44  mean  0.054  over 1:   0.0 %
+  16-bit, default                            max 165.75  mean 72.718  over 1:  98.4 %
+  8-bit, default                             max 165.83  mean 72.719  over 1:  97.7 %
+  8-bit, NOOPTIMIZE                          max   0.85  mean  0.237  over 1:   0.0 %
+
+## python probe/bpc.py
+LittleCMS 2170; max difference from relative colorimetric, 8-bit code values
+  to LittleCMS built-in sRGB (v4):   rel+BPC      perc  perc+BPC
+    published: gate, matrix + A2B/B2A tags          0.00      0.00      0.00
+    no gate (RGB 0,0,0 paints L* 86)                0.00      0.00      0.00
+    gate, A2B/B2A tags only                         0.00      8.02      8.02
+    gate, DToB tags only                            0.00      8.02      8.02
+  to sRGB v2:   rel+BPC      perc  perc+BPC
+    published: gate, matrix + A2B/B2A tags          0.00      0.00      0.00
+    no gate (RGB 0,0,0 paints L* 86)                0.00      0.00      0.00
+    gate, A2B/B2A tags only                         0.00      0.00      8.09
+    gate, DToB tags only                            0.00      0.00      8.09
+
+LittleCMS 2190; max difference from relative colorimetric, 8-bit code values
+  to LittleCMS built-in sRGB (v4):   rel+BPC      perc  perc+BPC
+    published: gate, matrix + A2B/B2A tags          0.00      0.00      0.00
+    no gate (RGB 0,0,0 paints L* 86)               42.70     42.70     42.70
+    gate, A2B/B2A tags only                         0.00      8.02      8.02
+    gate, DToB tags only                            0.00      8.02      8.02
+  to sRGB v2:   rel+BPC      perc  perc+BPC
+    published: gate, matrix + A2B/B2A tags          0.00      0.00      0.00
+    no gate (RGB 0,0,0 paints L* 86)               42.70      0.00     42.70
+    gate, A2B/B2A tags only                         0.00      0.00      8.09
+    gate, DToB tags only                            0.00      0.00      8.09

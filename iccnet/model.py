@@ -1,0 +1,99 @@
+"""Coordinate networks within LittleCMS's limits, and their export to profile stages.
+
+(x, y, z) -> sRGB-encoded color. Hidden layers are at most 14 wide: the export adds a fifteenth
+channel, a gate that paints the plane z = 0 black (see icc.gate). Activations, each an exact ICC
+segmented curve:
+    relu  two formula segments
+    sin   one sampled segment (16,384 samples over the range the pre-activations reach)
+    pwl   a learned piecewise-linear function per neuron: one sampled segment, with formula
+          segments that continue the end slopes
+The output goes through a sigmoid (a sampled segment) so every color is in range.
+"""
+import ast
+
+import numpy as np
+import torch
+
+from . import icc
+
+
+class PWL(torch.nn.Module):
+    """A piecewise-linear function per channel: values at k even knots on [lo, hi], linear beyond."""
+
+    def __init__(self, ch, k, lo=-4.0, hi=4.0):
+        super().__init__()
+        self.lo, self.hi, self.k = lo, hi, k
+        self.v = torch.nn.Parameter(torch.relu(torch.linspace(lo, hi, k)).repeat(ch, 1))
+
+    def forward(self, x):
+        t = (x - self.lo) / (self.hi - self.lo) * (self.k - 1)
+        i = t.floor().clamp(0, self.k - 2).long()
+        f = t - i
+        ch = torch.arange(x.shape[-1]).expand_as(i)
+        v0, v1 = self.v[ch, i], self.v[ch, i + 1]
+        return v0 + (v1 - v0) * f
+
+    def curves(self):
+        return [icc.piecewise_linear(self.lo, self.hi, v) for v in self.v.detach().double().numpy()]
+
+
+class Net(torch.nn.Module):
+    def __init__(self, act='pwl', width=14, depth=8, knots=64, omega=30.0):
+        super().__init__()
+        assert width < icc.MAX_CHANNELS, 'LittleCMS reads at most 15 channels, and the gate takes one'
+        self.config = dict(act=act, width=width, depth=depth, knots=knots, omega=omega)
+        dims = [3] + [width] * depth + [3]
+        self.lin = torch.nn.ModuleList(torch.nn.Linear(a, b) for a, b in zip(dims, dims[1:]))
+        self.act = act
+        if act == 'sin':                     # SIREN initialisation, omega folded into the weights
+            with torch.no_grad():
+                for j, layer in enumerate(self.lin[:-1]):
+                    bound = 1 / layer.in_features if j == 0 else np.sqrt(6 / layer.in_features) / omega
+                    layer.weight.uniform_(-bound, bound).mul_(omega)
+                    layer.bias.uniform_(-1, 1)
+        if act == 'pwl':
+            self.pwl = torch.nn.ModuleList(PWL(width, knots) for _ in range(depth))
+
+    def forward(self, x, pre=None):
+        for j, layer in enumerate(self.lin[:-1]):
+            x = layer(x)
+            if pre is not None:
+                pre.append(x.detach())
+            x = torch.relu(x) if self.act == 'relu' else torch.sin(x) if self.act == 'sin' else self.pwl[j](x)
+        return torch.sigmoid(self.lin[-1](x))
+
+    def stages(self, x):
+        """The network as profile stages, from inputs to sRGB-encoded output (no PCS tail), with
+        the gate channel added (icc.gate). x: the inputs the network will see, to size the sine's
+        sampled range."""
+        pre = []
+        with torch.no_grad():
+            self(torch.as_tensor(x, dtype=torch.float32), pre)
+        span = max(float(p.abs().max()) for p in pre) * 1.25 + 1
+        st = []
+        for j, layer in enumerate(self.lin):
+            st.append(('mat', layer.weight.detach().double().numpy(), layer.bias.detach().double().numpy()))
+            if j == len(self.lin) - 1:
+                break
+            w = layer.out_features
+            if self.act == 'relu':
+                st.append(('cur', [icc.relu()] * w))
+            elif self.act == 'sin':
+                st.append(('cur', [icc.sampled(np.sin, -span, span, 16384)] * w))
+            else:
+                st.append(('cur', self.pwl[j].curves()))
+        st.append(('cur', [icc.sampled(lambda t: 1 / (1 + np.exp(-t)), -12, 12, 4096)] * 3))
+        return icc.gate(st)
+
+
+def save(net, path, **meta):
+    np.savez(path, **{k: v.detach().numpy() for k, v in net.state_dict().items()},
+             __config__=np.array(repr({**net.config, **meta})))
+
+
+def load(path):
+    z = np.load(path)
+    cfg = ast.literal_eval(str(z['__config__']))
+    net = Net(**{k: cfg[k] for k in ('act', 'width', 'depth', 'knots', 'omega')})
+    net.load_state_dict({k: torch.tensor(z[k]) for k in z.files if k != '__config__'})
+    return net, cfg

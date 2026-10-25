@@ -1,0 +1,288 @@
+{
+ "littlecms": 2170,
+ "runs": [
+  {
+   "name": "mona_relu_d8",
+   "act": "relu",
+   "width": 14,
+   "depth": 8,
+   "knots": null,
+   "steps": 8000,
+   "parameters": 1571,
+   "profile_bytes": 25840,
+   "train_seconds": 95,
+   "paintings": [
+    {
+     "painting": "mona",
+     "code": 128,
+     "psnr": 23.98,
+     "psnr_pytorch": 23.98,
+     "psnr_table_8bit": 23.68,
+     "psnr_table_16bit": 23.69,
+     "max_littlecms_vs_pytorch": 0.035,
+     "max_perceptual_bpc_vs_relative": 0.0
+    }
+   ]
+  },
+  {
+   "name": "mona_sin_d8",
+   "act": "sin",
+   "width": 14,
+   "depth": 8,
+   "knots": null,
+   "steps": 8000,
+   "parameters": 1571,
+   "profile_bytes": 91392,
+   "train_seconds": 143,
+   "paintings": [
+    {
+     "painting": "mona",
+     "code": 128,
+     "psnr": 26.62,
+     "psnr_pytorch": 26.62,
+     "psnr_table_8bit": 25.55,
+     "psnr_table_16bit": 25.55,
+     "max_littlecms_vs_pytorch": 0.035,
+     "max_perceptual_bpc_vs_relative": 0.0
+    }
+   ]
+  },
+  {
+   "name": "mona_pwl_d4",
+   "act": "pwl",
+   "width": 14,
+   "depth": 4,
+   "knots": 64,
+   "steps": 8000,
+   "parameters": 4315,
+   "profile_bytes": 41372,
+   "train_seconds": 333,
+   "paintings": [
+    {
+     "painting": "mona",
+     "code": 128,
+     "psnr": 27.56,
+     "psnr_pytorch": 27.56,
+     "psnr_table_8bit": 25.74,
+     "psnr_table_16bit": 25.74,
+     "max_littlecms_vs_pytorch": 0.041,
+     "max_perceptual_bpc_vs_relative": 0.0
+    }
+   ]
+  },
+  {
+   "name": "mona_pwl_d8",
+   "act": "pwl",
+   "width": 14,
+   "depth": 8,
+   "knots": 64,
+   "steps": 8000,
+   "parameters": 8739,
+   "profile_bytes": 65052,
+   "train_seconds": 562,
+   "paintings": [
+    {
+     "painting": "mona",
+     "code": 128,
+     "psnr": 28.42,
+     "psnr_pytorch": 28.42,
+     "psnr_table_8bit": 25.79,
+     "psnr_table_16bit": 25.79,
+     "max_littlecms_vs_pytorch": 0.036,
+     "max_perceptual_bpc_vs_relative": 0.0
+    }
+   ]
+  },
+  {
+   "name": "mona_pwl_d12",
+   "act": "pwl",
+   "width": 14,
+   "depth": 12,
+   "knots": 64,
+   "steps": 8000,
+   "parameters": 13163,
+   "profile_bytes": 88732,
+   "train_seconds": 791,
+   "paintings": [
+    {
+     "painting": "mona",
+     "code": 128,
+     "psnr": 28.01,
+     "psnr_pytorch": 28.01,
+     "psnr_table_8bit": 25.72,
+     "psnr_table_16bit": 25.72,
+     "max_littlecms_vs_pytorch": 0.087,
+     "max_perceptual_bpc_vs_relative": 0.0
+    }
+   ]
+  },
+  {
+   "name": "mona_pwl_d8_k16",
+   "act": "pwl",
+   "width": 14,
+   "depth": 8,
+   "knots": 16,
+   "steps": 8000,
+   "parameters": 3363,
+   "profile_bytes": 43548,
+   "train_seconds": 505,
+   "paintings": [
+    {
+     "painting": "mona",
+     "code": 128,
+     "psnr": 27.47,
+     "psnr_pytorch": 27.47,
+     "psnr_table_8bit": 25.69,
+     "psnr_table_16bit": 25.7,
+     "max_littlecms_vs_pytorch": 0.035,
+     "max_perceptual_bpc_vs_relative": 0.0
+    }
+   ]
+  },
+  {
+   "name": "mona_pwl_d8_k256",
+   "act": "pwl",
+   "width": 14,
+   "depth": 8,
+   "knots": 256,
+   "steps": 8000,
+   "parameters": 30243,
+   "profile_bytes": 151068,
+   "train_seconds": 528,
+   "paintings": [
+    {
+     "painting": "mona",
+     "code": 128,
+     "psnr": 28.83,
+     "psnr_pytorch": 28.83,
+     "psnr_table_8bit": 25.76,
+     "psnr_table_16bit": 25.77,
+     "max_littlecms_vs_pytorch": 0.099,
+     "max_perceptual_bpc_vs_relative": 0.0
+    }
+   ]
+  },
+  {
+   "name": "pearl_pwl_d8",
+   "act": "pwl",
+   "width": 14,
+   "depth": 8,
+   "knots": 64,
+   "steps": 8000,
+   "parameters": 8739,
+   "profile_bytes": 65084,
+   "train_seconds": 517,
+   "paintings": [
+    {
+     "painting": "pearl",
+     "code": 128,
+     "psnr": 28.24,
+     "psnr_pytorch": 28.24,
+     "psnr_table_8bit": 21.33,
+     "psnr_table_16bit": 21.34,
+     "max_littlecms_vs_pytorch": 0.057,
+     "max_perceptual_bpc_vs_relative": 0.0
+    }
+   ]
+  },
+  {
+   "name": "wave_pwl_d8",
+   "act": "pwl",
+   "width": 14,
+   "depth": 8,
+   "knots": 64,
+   "steps": 8000,
+   "parameters": 8739,
+   "profile_bytes": 65092,
+   "train_seconds": 504,
+   "paintings": [
+    {
+     "painting": "wave",
+     "code": 128,
+     "psnr": 18.71,
+     "psnr_pytorch": 18.71,
+     "psnr_table_8bit": 15.21,
+     "psnr_table_16bit": 15.21,
+     "max_littlecms_vs_pytorch": 0.131,
+     "max_perceptual_bpc_vs_relative": 0.0
+    }
+   ]
+  },
+  {
+   "name": "duet_pwl_d8",
+   "act": "pwl",
+   "width": 14,
+   "depth": 8,
+   "knots": 64,
+   "steps": 12000,
+   "parameters": 8739,
+   "profile_bytes": 65144,
+   "train_seconds": 632,
+   "paintings": [
+    {
+     "painting": "mona",
+     "code": 16,
+     "psnr": 27.05,
+     "psnr_pytorch": 27.05,
+     "psnr_table_8bit": 25.58,
+     "psnr_table_16bit": 25.58,
+     "max_littlecms_vs_pytorch": 0.045,
+     "max_perceptual_bpc_vs_relative": 0.0
+    },
+    {
+     "painting": "pearl",
+     "code": 239,
+     "psnr": 26.65,
+     "psnr_pytorch": 26.65,
+     "psnr_table_8bit": 21.41,
+     "psnr_table_16bit": 21.41,
+     "max_littlecms_vs_pytorch": 0.052,
+     "max_perceptual_bpc_vs_relative": 0.0
+    }
+   ]
+  },
+  {
+   "name": "trio_pwl_d8",
+   "act": "pwl",
+   "width": 14,
+   "depth": 8,
+   "knots": 64,
+   "steps": 12000,
+   "parameters": 8739,
+   "profile_bytes": 65240,
+   "train_seconds": 551,
+   "paintings": [
+    {
+     "painting": "mona",
+     "code": 32,
+     "psnr": 25.96,
+     "psnr_pytorch": 25.96,
+     "psnr_table_8bit": 24.97,
+     "psnr_table_16bit": 24.97,
+     "max_littlecms_vs_pytorch": 0.037,
+     "max_perceptual_bpc_vs_relative": 0.0
+    },
+    {
+     "painting": "pearl",
+     "code": 128,
+     "psnr": 24.66,
+     "psnr_pytorch": 24.66,
+     "psnr_table_8bit": 21.22,
+     "psnr_table_16bit": 21.22,
+     "max_littlecms_vs_pytorch": 0.064,
+     "max_perceptual_bpc_vs_relative": 0.0
+    },
+    {
+     "painting": "wave",
+     "code": 224,
+     "psnr": 16.97,
+     "psnr_pytorch": 16.97,
+     "psnr_table_8bit": 15.45,
+     "psnr_table_16bit": 15.45,
+     "max_littlecms_vs_pytorch": 0.062,
+     "max_perceptual_bpc_vs_relative": 0.0
+    }
+   ]
+  }
+ ]
+}

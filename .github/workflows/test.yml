@@ -1,0 +1,19 @@
+name: test
+on: [push, pull_request]
+jobs:
+  test:
+    # Ubuntu's LittleCMS is 2.14, older than the 2.17 and 2.19 measured on macOS: the tests check
+    # that the engine facts the profiles depend on hold there too
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y liblcms2-2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install numpy pillow pytest
+      - run: python -c "from iccnet import lcms; print('LittleCMS', lcms.version())"
+      - run: python -m pytest tests -v

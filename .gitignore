@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+node_modules/
+runs/
+out/
+feasibility/
+train_all.log
+pages/dist/
+colorsync
+.DS_Store

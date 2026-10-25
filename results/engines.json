@@ -1,0 +1,98 @@
+{
+ "carrier": "trio.png",
+ "versions": {
+  "littlecms": 2170,
+  "pillow": "11.2.1 (LittleCMS 2.17)",
+  "imagemagick": "ImageMagick 7.1.2-33 Q8 wasm32 211e5b975:20261010 https://imagemagick.org",
+  "sharp": "0.35.5",
+  "libvips": "8.18.7",
+  "tificc": "LittleCMS 2.17",
+  "colorsync": "ColorSyncProfileVerify: true"
+ },
+ "engines": {
+  "lcms_double": {
+   "label": "LittleCMS double (reference)",
+   "kind": "exact",
+   "mean": 0.0,
+   "max": 0.0,
+   "mean_vs_carrier": 76.7
+  },
+  "lcms_16": {
+   "label": "LittleCMS 16-bit (default flags)",
+   "kind": "table",
+   "mean": 8.63,
+   "max": 176.1,
+   "mean_vs_carrier": 74.99
+  },
+  "lcms_8": {
+   "label": "LittleCMS 8-bit (default flags)",
+   "kind": "table",
+   "mean": 8.64,
+   "max": 176.3,
+   "mean_vs_carrier": 74.99
+  },
+  "pillow": {
+   "label": "Pillow ImageCms (defaults)",
+   "kind": "table",
+   "mean": 8.64,
+   "max": 176.3,
+   "mean_vs_carrier": 74.99
+  },
+  "pillow_noopt": {
+   "label": "Pillow ImageCms, NOOPTIMIZE",
+   "kind": "exact",
+   "mean": 0.25,
+   "max": 0.5,
+   "mean_vs_carrier": 76.7
+  },
+  "imagemagick": {
+   "label": "ImageMagick 7, -profile (high-res)",
+   "kind": "exact",
+   "mean": 0.25,
+   "max": 0.5,
+   "mean_vs_carrier": 76.7
+  },
+  "imagemagick_quantum": {
+   "label": "ImageMagick 7, quantum mode",
+   "kind": "table",
+   "mean": 6.33,
+   "max": 175.2,
+   "mean_vs_carrier": 75.41
+  },
+  "sharp": {
+   "label": "sharp (default pipeline)",
+   "kind": "table",
+   "mean": 8.64,
+   "max": 176.3,
+   "mean_vs_carrier": 74.99
+  },
+  "libvips": {
+   "label": "libvips icc_transform",
+   "kind": "table",
+   "mean": 8.64,
+   "max": 176.3,
+   "mean_vs_carrier": 74.99
+  },
+  "tificc": {
+   "label": "tificc (LittleCMS tool), defaults",
+   "kind": "table",
+   "mean": 8.64,
+   "max": 176.3,
+   "mean_vs_carrier": 74.99
+  },
+  "tificc_c0": {
+   "label": "tificc -c0 (no precalculation)",
+   "kind": "exact",
+   "mean": 0.25,
+   "max": 0.5,
+   "mean_vs_carrier": 76.7
+  },
+  "colorsync": {
+   "label": "macOS ColorSync (Safari, Preview)",
+   "kind": "ignored",
+   "mean": 76.71,
+   "max": 252.3,
+   "mean_vs_carrier": 0.04
+  }
+ }
+}

@@ -1,0 +1,5 @@
+numpy>=1.26
+pillow>=10.1
+pytest>=8
+# training only (python -m iccnet train, train_all.py)
+torch>=2.2
