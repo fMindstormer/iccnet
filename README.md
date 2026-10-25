@@ -84,8 +84,9 @@ channel: segments split at breakpoints, each either a formula (y = (ax + b)^γ +
 samples with linear interpolation, and the first and last must be formulas. ReLU is two linear
 formula segments that meet at 0. A sine is one sampled segment of 16,384 points. A learned
 activation is a piecewise-linear function with 64 knots on [−4, 4]. The profile stores it as one
-sampled segment between two linear formula segments that continue its end slopes, so it is exact:
-LittleCMS's render of every trained profile matches PyTorch's to within 0.13 code values.
+sampled segment, then linear formula segments that continue its end slopes as far as any input in
+[0, 1]³ can drive that neuron (bounded by interval arithmetic), and constants beyond. So it is
+exact: LittleCMS's render of every trained profile matches PyTorch's to within 0.13 code values.
 
 **Width.** LittleCMS reads matrices with at most 15 inputs and outputs, and the gate takes one
 channel, so hidden layers are 14 wide. Depth is free, and a curve can hold any number of samples,
@@ -97,7 +98,7 @@ else says plain sRGB:
 
 | Tags | Type | For |
 |---|---|---|
-| D2B0–D2B3 | `mpet` | the network, then sRGB → XYZ: one copy, most of the 64 KB for the 8-layer network |
+| D2B0–D2B3 | `mpet` | the network, then sRGB → XYZ: one copy, most of the 71 KB for the 8-layer network |
 | rXYZ, gXYZ, bXYZ, rTRC, gTRC, bTRC | `XYZ `, `para` | engines that skip DToB (they show the pixels as sRGB); LittleCMS's intent checks and its black-point search |
 | A2B0–A2B2, B2A0–B2A2 | `mAB `, `mBA ` | browsers; LittleCMS's intent checks; GIMP and darktable, which only send profiles with LUT tags to LittleCMS |
 | desc, cprt, wtpt, chad | | description, copyright, D50 white, the D65 → D50 adaptation |
@@ -130,6 +131,12 @@ Found with the probes in `probe/` and checked by `tests/`. LittleCMS 2.17 (Homeb
   relative intent use A2B1, not D2B0 (`test_each_intent_reads_its_own_dtob`).
 - **Fewer than 16 channels.** A `matf` element with 16 inputs or outputs makes the tag unreadable
   (`test_sixteen_channels_are_rejected`).
+- **Before 2.16, a formula segment clamps even when it is linear.** For y = (ax + b)^γ + c,
+  LittleCMS 2.14 and 2.15 return c wherever ax + b < 0, even at γ = 1; 2.16 added an exception for
+  γ = 1. Ubuntu 24.04 and Debian 12 ship 2.14, and CI on Ubuntu caught a test profile whose linear
+  ends went negative (0.097 off in XYZ). So the writer measures every linear segment from the end
+  where its base is 0, and the gallery paints the same under both rules
+  (`test_older_littlecms_paints_the_same`).
 - **Float pixels are evaluated exactly.** On float and double formats every element runs for every
   pixel, with float32 values between elements and no clipping. `probe/spike.py` runs a fixed
   3 → 8 → 3 network on all 65,536 (R, G) pairs at five values of B. At the XYZ connection space it
@@ -176,16 +183,16 @@ the same, to within rounding):
 |---|---:|---:|---:|---:|
 | ReLU, depth 8 | 1,571 | 25 KB | 23.98 dB | 23.68 dB |
 | sine, depth 8 | 1,571 | 89 KB | 26.62 dB | 25.55 dB |
-| learned curves, 64 knots, depth 4 | 4,315 | 40 KB | 27.56 dB | 25.74 dB |
-| learned curves, 64 knots, depth 8 | 8,739 | 64 KB | **28.42 dB** | 25.79 dB |
-| learned curves, 64 knots, depth 12 | 13,163 | 87 KB | 28.01 dB | 25.72 dB |
-| learned curves, 16 knots, depth 8 | 3,363 | 43 KB | 27.47 dB | 25.69 dB |
-| learned curves, 256 knots, depth 8 | 30,243 | 148 KB | **28.83 dB** | 25.76 dB |
+| learned curves, 64 knots, depth 4 | 4,315 | 44 KB | 27.56 dB | 25.74 dB |
+| learned curves, 64 knots, depth 8 | 8,739 | 71 KB | **28.42 dB** | 25.79 dB |
+| learned curves, 64 knots, depth 12 | 13,163 | 97 KB | 28.01 dB | 25.72 dB |
+| learned curves, 16 knots, depth 8 | 3,363 | 50 KB | 27.47 dB | 25.69 dB |
+| learned curves, 256 knots, depth 8 | 30,243 | 155 KB | **28.83 dB** | 25.76 dB |
 
 <img src="docs/images/capacity.png" alt="The Mona Lisa as painted by each network: the ReLU one is faceted, the sine one blurry, the learned curves sharper">
 
 Learned activations matter most. With the same layers, ReLU reaches 24.0 dB, a sine 26.6 and
-learned curves 28.4. More knots help a little (256 knots: 28.8 dB, at 148 KB); depth 12 did worse
+learned curves 28.4. More knots help a little (256 knots: 28.8 dB, at 155 KB); depth 12 did worse
 than 8 in the same 8,000 steps. Through the table every network but ReLU lands between 25.5 and
 25.8 dB: there the table sets the quality, not the network.
 
@@ -204,8 +211,8 @@ The gallery (`gallery/`, listed in [gallery/README.md](gallery/README.md)):
 | `trio.png` | Mona Lisa 32, Pearl Earring 128, Great Wave 224 | 26.0, 24.7, 17.0 | 25.0, 21.2, 15.4 |
 | `lowpoly.png` | Mona Lisa, 128, by the ReLU network | 24.0 | 23.7 |
 
-Each is one network of 8 layers of 14 with learned curves (8,739 parameters, a 64 KB profile, a
-30 KB PNG), except `lowpoly.png`. Sharing the same parameters costs each painting 1.4 to 1.6 dB
+Each is one network of 8 layers of 14 with learned curves (8,739 parameters, a 71 KB profile, a
+31 KB PNG), except `lowpoly.png`. Sharing the same parameters costs each painting 1.4 to 1.6 dB
 for two and 1.7 to 3.6 dB for three, against a network of its own.
 
 ## Prior work

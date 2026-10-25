@@ -96,6 +96,9 @@ class Curve:
 
 
 def identity():
+    """y = x for x >= 0. LittleCMS before 2.16 returns c where a x + b < 0, even at gamma 1, so a
+    formula segment that may see a negative base is written differently (piecewise_linear); this
+    one is only used on channels that are never negative."""
     return Curve([], [('f', 1, 1, 0, 0)])
 
 
@@ -110,13 +113,21 @@ def sampled(fn, lo, hi, n):
                             ('f', 1, 0, 0, float(fn(np.float64(hi))))])
 
 
-def piecewise_linear(lo, hi, values):
-    """Linear interpolation of values at evenly spaced knots on [lo, hi], continued beyond the ends
-    with the end slopes. One sampled segment, so it is exact."""
+def piecewise_linear(lo, hi, values, reach=None):
+    """Linear interpolation of values at evenly spaced knots on [lo, hi], continued with the end
+    slopes out to reach = (left, right) and constant beyond (default: 100 knot ranges either side).
+    One sampled segment, so it is exact. Each linear end is measured from the end of its segment
+    where it is 0, so its base a x + b is never negative there: LittleCMS before 2.16 returns c
+    for a negative base even at gamma 1."""
     v = np.asarray(values, dtype=np.float64)
     h = (hi - lo) / (len(v) - 1)
     sl, sr = (v[1] - v[0]) / h, (v[-1] - v[-2]) / h
-    return Curve([lo, hi], [('f', 1, sl, v[0] - sl * lo, 0), ('s', v[1:]), ('f', 1, sr, v[-1] - sr * hi, 0)])
+    left, right = reach if reach is not None else (lo - 100 * (hi - lo), hi + 100 * (hi - lo))
+    assert left < lo and right > hi
+    yl, yr = v[0] + sl * (left - lo), v[-1] + sr * (right - hi)
+    lin_l = ('f', 1, sl, -sl * left, yl) if sl >= 0 else ('f', 1, sl, -sl * lo, v[0])
+    lin_r = ('f', 1, sr, -sr * hi, v[-1]) if sr >= 0 else ('f', 1, sr, -sr * right, yr)
+    return Curve([left, lo, hi, right], [('f', 1, 0, 0, yl), lin_l, ('s', v[1:]), lin_r, ('f', 1, 0, 0, yr)])
 
 
 def srgb_eotf():

@@ -40,6 +40,33 @@ def test_littlecms_evaluates_the_stages(act):
     assert np.abs(np.clip(srgb, 0, 1) - np.clip(icc.forward(net, CODES / 255.0), 0, 1)).max() * 255 < 0.3
 
 
+def clamped_formula(s, x):
+    """A formula segment as LittleCMS evaluated it before 2.16: c wherever a x + b < 0, even at gamma 1."""
+    g, a, b, c = s[1:]
+    e = a * x + b
+    return np.where(e < 0, c, np.power(np.maximum(e, 0), g) + c)
+
+
+@pytest.mark.parametrize('source', ['random', 'gallery'])
+def test_older_littlecms_paints_the_same(monkeypatch, source):
+    """The writer keeps the base of every formula segment non-negative where it is evaluated, so
+    LittleCMS 2.14 and 2.15 (Ubuntu 24.04, Debian 12) paint what 2.16 and later paint."""
+    if source == 'random':
+        nets = [(icc.gate(random_net(act='pwl')), CODES / 255.0)]
+    else:
+        nets = []
+        for name in ('mona', 'pearl', 'wave', 'duet', 'trio', 'lowpoly'):
+            path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'gallery', f'{name}.png')
+            if not os.path.exists(path):
+                pytest.skip('gallery not built')
+            px, prof = png.read(path)
+            nets.append((read.mpet_stages(read.tag_data(prof, 'D2B1')), px.reshape(-1, 3) / 255.0))
+    want = [icc.forward(n, x) for n, x in nets]
+    monkeypatch.setattr(icc.Curve, 'formula', staticmethod(clamped_formula))
+    for (n, x), w in zip(nets, want):
+        assert np.abs(icc.forward(n, x) - w).max() < 1e-5
+
+
 def test_profile_reads_back():
     net = icc.gate(random_net(act='pwl'))
     data = icc.profile(net, 'round trip')

@@ -33,8 +33,24 @@ class PWL(torch.nn.Module):
         v0, v1 = self.v[ch, i], self.v[ch, i + 1]
         return v0 + (v1 - v0) * f
 
-    def curves(self):
-        return [icc.piecewise_linear(self.lo, self.hi, v) for v in self.v.detach().double().numpy()]
+    def curves(self, zlo=None, zhi=None):
+        """As profile curves, linear out to the bounds zlo, zhi of each channel's input (if given)."""
+        V = self.v.detach().double().numpy()
+        if zlo is None:
+            return [icc.piecewise_linear(self.lo, self.hi, v) for v in V]
+        return [icc.piecewise_linear(self.lo, self.hi, v, (min(a, self.lo) - 1, max(b, self.hi) + 1))
+                for v, a, b in zip(V, zlo, zhi)]
+
+    def bounds(self, zlo, zhi):
+        """Bounds of each channel's output for inputs in [zlo, zhi]: at the ends and the knots between."""
+        V = self.v.detach().double().numpy()
+        knots = np.linspace(self.lo, self.hi, self.k)
+        out_lo, out_hi = np.empty(len(V)), np.empty(len(V))
+        for c, (v, a, b) in enumerate(zip(V, zlo, zhi)):
+            xs = np.concatenate([[a, b], knots[(knots > a) & (knots < b)]])
+            ys = self(torch.tensor(np.broadcast_to(xs[:, None], (len(xs), len(V))).copy()))[:, c].detach().double().numpy()
+            out_lo[c], out_hi[c] = ys.min(), ys.max()
+        return out_lo, out_hi
 
 
 class Net(torch.nn.Module):
@@ -65,23 +81,32 @@ class Net(torch.nn.Module):
     def stages(self, x):
         """The network as profile stages, from inputs to sRGB-encoded output (no PCS tail), with
         the gate channel added (icc.gate). x: the inputs the network will see, to size the sine's
-        sampled range."""
+        sampled range. Learned curves stay linear over the bounds of their inputs for any input in
+        [0, 1]^3 (interval arithmetic), so they are exact for every carrier."""
         pre = []
         with torch.no_grad():
             self(torch.as_tensor(x, dtype=torch.float32), pre)
         span = max(float(p.abs().max()) for p in pre) * 1.25 + 1
         st = []
+        lo, hi = np.zeros(3), np.ones(3)
         for j, layer in enumerate(self.lin):
-            st.append(('mat', layer.weight.detach().double().numpy(), layer.bias.detach().double().numpy()))
+            W, b = layer.weight.detach().double().numpy(), layer.bias.detach().double().numpy()
+            st.append(('mat', W, b))
             if j == len(self.lin) - 1:
                 break
+            zlo = np.maximum(W, 0) @ lo + np.minimum(W, 0) @ hi + b
+            zhi = np.maximum(W, 0) @ hi + np.minimum(W, 0) @ lo + b
             w = layer.out_features
             if self.act == 'relu':
                 st.append(('cur', [icc.relu()] * w))
+                lo, hi = np.maximum(zlo, 0), np.maximum(zhi, 0)
             elif self.act == 'sin':
                 st.append(('cur', [icc.sampled(np.sin, -span, span, 16384)] * w))
+                lo, hi = np.full(w, -1.0), np.full(w, 1.0)
             else:
-                st.append(('cur', self.pwl[j].curves()))
+                st.append(('cur', self.pwl[j].curves(zlo, zhi)))
+                with torch.no_grad():
+                    lo, hi = self.pwl[j].bounds(zlo, zhi)
         st.append(('cur', [icc.sampled(lambda t: 1 / (1 + np.exp(-t)), -12, 12, 4096)] * 3))
         return icc.gate(st)
 

@@ -55,7 +55,7 @@
    "knots": 64,
    "steps": 8000,
    "parameters": 4315,
-   "profile_bytes": 41372,
+   "profile_bytes": 44956,
    "train_seconds": 333,
    "paintings": [
     {
@@ -78,7 +78,7 @@
    "knots": 64,
    "steps": 8000,
    "parameters": 8739,
-   "profile_bytes": 65052,
+   "profile_bytes": 72220,
    "train_seconds": 562,
    "paintings": [
     {
@@ -101,7 +101,7 @@
    "knots": 64,
    "steps": 8000,
    "parameters": 13163,
-   "profile_bytes": 88732,
+   "profile_bytes": 99484,
    "train_seconds": 791,
    "paintings": [
     {
@@ -124,7 +124,7 @@
    "knots": 16,
    "steps": 8000,
    "parameters": 3363,
-   "profile_bytes": 43548,
+   "profile_bytes": 50716,
    "train_seconds": 505,
    "paintings": [
     {
@@ -147,7 +147,7 @@
    "knots": 256,
    "steps": 8000,
    "parameters": 30243,
-   "profile_bytes": 151068,
+   "profile_bytes": 158236,
    "train_seconds": 528,
    "paintings": [
     {
@@ -170,7 +170,7 @@
    "knots": 64,
    "steps": 8000,
    "parameters": 8739,
-   "profile_bytes": 65084,
+   "profile_bytes": 72252,
    "train_seconds": 517,
    "paintings": [
     {
@@ -193,7 +193,7 @@
    "knots": 64,
    "steps": 8000,
    "parameters": 8739,
-   "profile_bytes": 65092,
+   "profile_bytes": 72260,
    "train_seconds": 504,
    "paintings": [
     {
@@ -216,7 +216,7 @@
    "knots": 64,
    "steps": 12000,
    "parameters": 8739,
-   "profile_bytes": 65144,
+   "profile_bytes": 72312,
    "train_seconds": 632,
    "paintings": [
     {
@@ -249,7 +249,7 @@
    "knots": 64,
    "steps": 12000,
    "parameters": 8739,
-   "profile_bytes": 65240,
+   "profile_bytes": 72408,
    "train_seconds": 551,
    "paintings": [
     {
