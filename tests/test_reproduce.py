@@ -46,7 +46,9 @@ def test_srgb_icc_is_plain_srgb():
 def test_expected_paintings_are_what_littlecms_paints(name):
     px, prof = png.read(os.path.join(ROOT, 'gallery', f'{name}.png'))
     srgb = icc.srgb_profile()
-    for path, suffix, tol in (('double', '', 0.51), ('8', '-table', 1)):
+    # the rounding to 8 bits, plus what versions differ by in double precision: 2.17 and 2.19 agree
+    # exactly, and 2.14 puts one value of the wave 0.511 away from its rounding
+    for path, suffix, tol in (('double', '', 0.6), ('8', '-table', 1)):
         got = np.clip(lcms.render(prof, px[..., :3], path, lcms.PERCEPTUAL, dst=srgb), 0, 1) * 255
         want = load(os.path.join(ROOT, 'results', 'expected', f'{name}{suffix}.png'))
         assert np.abs(got - want).max() <= tol, f'{name}{suffix}'
