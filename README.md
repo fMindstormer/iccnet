@@ -4,12 +4,13 @@
 convert one to sRGB, and the color engine, doing nothing but its ordinary job, paints the Mona
 Lisa.
 
-<table>
-<tr><th><code>gallery/trio.png</code>, as your browser shows it</th></tr>
-<tr><td><img src="gallery/trio.png" width="768" alt="A smooth gradient in three square tiles: red grows to the right, green downwards, each tile a different blue"></td></tr>
-<tr><th>The same file after <code>magick gallery/trio.png -profile sRGB.icc out.png</code></th></tr>
-<tr><td><img src="results/engines/imagemagick.png" width="768" alt="Three paintings side by side: the Mona Lisa, Girl with a Pearl Earring and The Great Wave"></td></tr>
-</table>
+<img src="docs/images/run.png" width="800" alt="An animation in three parts: trio.png shown as a gradient in three square tiles; in a terminal, the command magick trio.png -profile sRGB.icc painted.png is typed and returns a third of a second later; painted.png appears below it, the Mona Lisa, Girl with a Pearl Earring and The Great Wave side by side">
+
+<sub>A real run of the command, drawn by <a href="record.py"><code>record.py</code></a> from the run's own input, output, version line and timing. It is not a screen capture.</sub>
+
+**[Try it in your browser →](https://fmindstormer.github.io/iccnet/)** &nbsp;·&nbsp;
+[Reproduce it](#reproduce-it) &nbsp;·&nbsp;
+[Download the release](https://github.com/fMindstormer/iccnet/releases/tag/v1.0.0)
 
 Every pixel of the file stores where it is: red counts the columns, green counts the rows, and
 blue is a number that picks a painting. The file also carries an ICC color profile, the block of
@@ -19,14 +20,48 @@ to describe devices: matrices and curves. A color engine converting the file run
 and curves on every pixel, which means it runs the network, and the gradient turns into three
 paintings. Nothing in the file is code, and no engine was modified.
 
+## Where it works
+
+- **Browsers show the gradient.** Chrome, Safari and Firefox skip the part of the profile that
+  holds the network (its DToB tags), so they show the pixels as they are stored. GitHub is showing
+  you the real file right here, profile and all:
+
+  <img src="gallery/trio.png" width="768" alt="trio.png as this browser displays it: a smooth gradient in three square tiles, red growing to the right, green downwards, each tile a different blue">
+
+- **Color engines that read those tags paint the pictures.** ImageMagick runs the network on
+  every pixel, exactly. Pillow, sharp and libvips by default go through a 33-point table instead,
+  and paint the pictures blocky ([what each engine does](#what-paints-it)).
+- **The [interactive page](https://fmindstormer.github.io/iccnet/) brings its own evaluator.** It
+  reads the profile from the PNG and runs it in JavaScript, which matches LittleCMS to within one
+  code value. Your browser's color management plays no part in it. The page also lets you slide
+  blue between the paintings and takes the network apart element by element.
+
+## Reproduce it
+
+No training, no Python: one ImageMagick command converts a carrier to the repository's plain sRGB
+profile, and a second compares the result with the expected painting.
+
 ```sh
-magick gallery/trio.png -profile "/System/Library/ColorSync/Profiles/sRGB Profile.icc" painted.png
+git clone https://github.com/fMindstormer/iccnet && cd iccnet
+magick gallery/trio.png -profile sRGB.icc painted.png      # ImageMagick 7
+convert gallery/trio.png -profile sRGB.icc painted.png     # ImageMagick 6
+magick compare -metric AE -fuzz 1% painted.png results/expected/trio.png null:    # prints 0 (0)
+compare -metric AE -fuzz 1% painted.png results/expected/trio.png null:           # 6: prints 0
 ```
 
-**[Open the interactive page →](https://claude.ai/artifact/3kSNePTe3VMEieVZ7Yjx4G)** It paints
-the gallery in your browser with its own evaluator of the profile, which matches LittleCMS to
-within one code value. It lets you slide blue between the paintings, shows what every engine made
-of the file, and takes the network apart element by element, read straight from the PNG.
+| ImageMagick, native | Where | LittleCMS | Against `results/expected/trio.png` |
+|---|---|---|---|
+| 7.1.2-34 Q16-HDRI | Homebrew, macOS 27.0.1, Apple M4 | 2.19.1 | max 1 code value (3 rounding ties of 589,824 values) |
+| 6.9.12-98 Q16 | Ubuntu 24.04 (apt), in CI on every push | 2.14 | max 1 code value |
+
+`sRGB.icc` is a plain sRGB display profile of 540 bytes (ICC v4, three colorants and three tone
+curves, written by `iccnet.icc.srgb_profile()`), so the command needs nothing from the operating
+system. macOS's own sRGB profile or LittleCMS's built-in one paint the same to within 0.05 code
+values. `results/expected/` holds each carrier as LittleCMS paints it in double precision, and
+through its 33-point table (`<name>-table.png`). The
+[v1.0.0 release](https://github.com/fMindstormer/iccnet/releases/tag/v1.0.0) bundles the six
+carriers, `sRGB.icc`, the expected outputs, every engine's result and `SHA256SUMS`, and
+[REPRODUCE.md](REPRODUCE.md) covers Pillow and the other engines.
 
 ## The machine
 
@@ -241,9 +276,9 @@ there first:
 | the gate paints code 0 black and changes nothing else | `test_gate_paints_zero_black_and_leaves_the_rest` |
 | LittleCMS before 2.16 paints the same | `test_older_littlecms_paints_the_same`, and CI on 2.14 |
 
-The probes give the same numbers on LittleCMS 2.17 (Homebrew) and 2.19 (the copy inside sharp's
-libvips), except for the black point. The tests pass on both, and CI runs them on Ubuntu 24.04's
-2.14. The probes' output is in `results/probes.txt`.
+The probes give the same numbers on LittleCMS 2.17 and 2.19 (the copy inside sharp's libvips),
+except for the black point. The tests pass on 2.17 and 2.19.1 (Homebrew), and CI runs them on
+Ubuntu 24.04's 2.14. The probes' output is in `results/probes.txt`.
 
 ## Results
 
@@ -255,17 +290,18 @@ precision, in 8-bit code values:
 
 | Engine | Version | Result | Mean / max |
 |---|---|---|---:|
-| ImageMagick, `-profile` (double precision, its default) | 7.1.2-33, the official WebAssembly build | the paintings, exact | 0.25 / 0.5 |
-| LittleCMS on float pixels; `tificc -c0`; Pillow's `ImageCms` with `Flags.NOOPTIMIZE` | LittleCMS 2.17, Pillow 11.2.1 | the paintings, exact | 0.25 / 0.5 |
+| ImageMagick, `-profile` (double precision, its default) | 7.1.2-34 Q16-HDRI, native (Homebrew, LittleCMS 2.19.1); 7.1.2-33, the official WebAssembly build | the paintings, exact | 0.25 / 0.5 |
+| LittleCMS on float pixels; `tificc -c0`; Pillow's `ImageCms` with `Flags.NOOPTIMIZE` | LittleCMS 2.19.1; Pillow 11.2.1 (LittleCMS 2.17) | the paintings, exact | 0.25 / 0.5 |
 | sharp, default pipeline; libvips `icc_transform` | sharp 0.35.5, libvips 8.18.7 (LittleCMS 2.19) | the paintings through a 33-point table | 8.64 / 176 |
-| Pillow's `ImageCms.profileToProfile`, default flags; `tificc` | Pillow 11.2.1, LittleCMS 2.17 | the paintings through a 33-point table | 8.64 / 176 |
-| ImageMagick with `-define profile:highres-transform=false` (16-bit) | 7.1.2-33 | the paintings through a 49-point table | 6.33 / 175 |
+| Pillow's `ImageCms.profileToProfile`, default flags; `tificc` | Pillow 11.2.1 (LittleCMS 2.17); LittleCMS 2.19.1 | the paintings through a 33-point table | 8.64 / 176 |
+| ImageMagick with `-define profile:highres-transform=false` (16-bit) | 7.1.2-33, the WebAssembly build (Q8, no HDRI) | the paintings through a 49-point table | 6.33 / 175 |
 | macOS ColorSync, through Core Graphics, as Safari and Preview use it | macOS 27.0.1 | the gradient: DToB tags are not evaluated | |
 
-An exact result is off by 0.5 at most, which is the rounding to an 8-bit file. The WebAssembly
-build is Q8 without HDRI; builds with HDRI ignore the define and always convert in double
-precision (`MagickCore/profile.c`). No native ImageMagick was installed, so the one-liner above ran
-here as the same call through the WebAssembly build.
+An exact result is off by 0.5 at most, which is the rounding to an 8-bit file. Each engine converts
+to `sRGB.icc` where it takes a profile file; sharp, libvips and ColorSync use their own sRGB. The
+define only matters without HDRI: the native Q16-HDRI build ignores it and paints exactly either
+way (measured, and `MagickCore/profile.c`). ImageMagick 6 converts in double precision too, which
+CI checks with Ubuntu's 6.9.12 on every push.
 
 <img src="docs/images/engines.png" width="768" alt="The trio file as converted by macOS ColorSync (the gradient), by ImageMagick (the three paintings) and by sharp (the paintings, blocky from the table)">
 
@@ -409,9 +445,9 @@ published neural network stored in an ICC profile and run by an unmodified color
 - **Small pictures.** 256 × 256 per code, from 8-bit channels, at about 28 dB for the portraits.
   The Great Wave's foam lines bring it down to 18.7 dB.
 - **Blue = 0 is black**, the gate's plane. Codes 1 to 255 are free.
-- **Tested on one Mac.** LittleCMS 2.17 and 2.19 were run here, and CI runs the tests on 2.14.
-  What other applications do comes from their current source, read in October 2026. Windows' color
-  engine and Adobe's are unknown.
+- **Measured on one Mac.** LittleCMS 2.17 and 2.19 ran here, and CI runs the tests and
+  ImageMagick 6 on Ubuntu with LittleCMS 2.14. What other applications do comes from their current
+  source, read in October 2026. Windows' color engine and Adobe's are unknown.
 
 Not tried yet: training through the 33-point table, so that integer pipelines show more of the
 picture; 16-bit carriers, which would give float engines 65,536 positions per axis; and engines
@@ -424,7 +460,7 @@ requirements.txt`), and LittleCMS 2 (`brew install little-cms2`, `apt install li
 `LCMS2` to a library path to use another build). Run everything from the repository root.
 
 ```sh
-python -m pytest tests            # the profiles against LittleCMS, and the facts above
+python -m pytest tests            # the profiles against LittleCMS, the facts above, the reproduction
 python train_all.py               # the 11 networks, three at a time: runs/ (32 minutes on an M4)
 python publish.py                 # gallery/, results/capacity.json, docs/images/
 python probe/spike.py             # the first experiment: a fixed 3 → 8 → 3 network on every path
@@ -432,7 +468,9 @@ python probe/tables.py            # the integer paths; writes probe/sine.png
 python probe/bpc.py               # black point compensation by profile layout
 python probe/engines.py gallery/trio.png --json results/engines.json --save-dir results/engines \
     --figure docs/images/engines.png --figure-engines colorsync,imagemagick,sharp
-python pages/build.py             # the interactive page: pages/dist/
+python release.py                 # sRGB.icc, results/expected/, and the release bundle in dist/
+python record.py                  # docs/images/run.png, from a run of the command (needs ImageMagick)
+python pages/build.py             # the interactive page: pages/dist/, deployed to GitHub Pages
 
 python -m iccnet train --paintings mona,pearl --codes 64,192 --name mine   # runs/mine.{icc,png,npz,json}
 python -m iccnet inspect gallery/trio.png      # header, tags and DToB elements
@@ -440,9 +478,10 @@ python -m iccnet render gallery/trio.png out.png --path 16    # paint it with Li
 ```
 
 `probe/engines.py` runs whatever it finds: Pillow always, `tificc` when it is on the PATH
-(Homebrew's little-cms2 has it), ImageMagick and sharp if `NODE_MODULES_ROOT` names a directory
-where `npm install sharp @imagemagick/magick-wasm` was run, libvips if `VIPS_PYTHON` is a Python
-with `pyvips[binary]`, and ColorSync if `COLORSYNC_PROBE` is the binary from
+(Homebrew's little-cms2 has it), a native ImageMagick (`magick` or `convert`) when it is on the
+PATH, ImageMagick's WebAssembly build and sharp if `NODE_MODULES_ROOT` names a directory where
+`npm install sharp @imagemagick/magick-wasm` was run, libvips if `VIPS_PYTHON` is a Python with
+`pyvips[binary]`, and ColorSync if `COLORSYNC_PROBE` is the binary from
 `swiftc -O probe/colorsync.swift -o colorsync`.
 
 ## Files
@@ -456,11 +495,15 @@ with `pyvips[binary]`, and ColorSync if `COLORSYNC_PROBE` is the binary from
 | `iccnet/png.py`, `iccnet/read.py` | PNG with an embedded profile; reading profiles back |
 | `iccnet/__main__.py` | `python -m iccnet train / carrier / render / inspect` |
 | `train_all.py`, `publish.py` | the networks above; the gallery, figures and `results/capacity.json` |
+| `release.py`, `REPRODUCE.md` | `sRGB.icc`, the expected outputs and the release bundle; the steps to check them |
+| `record.py` | the animation at the top, from a real run of the command |
+| `sRGB.icc` | a plain sRGB profile, the destination in the command |
 | `probe/` | the experiments behind the facts above, and one harness per engine |
-| `tests/` | pytest, and the page's evaluator against LittleCMS (`eval.mjs`) |
+| `tests/` | pytest, the reproduction with a native ImageMagick, and the page's evaluator against LittleCMS (`eval.mjs`) |
 | `pages/` | the interactive page: `iccnet.js` (profile reader and evaluator), the template, `build.py` |
+| `.github/workflows/` | the tests on Ubuntu, and the page's deployment to GitHub Pages |
 | `gallery/` | the carriers, each with its profile embedded, and their weights |
-| `results/` | measured figures (`capacity.json`, `engines.json`), each engine's output, the probes' output |
+| `results/` | measured figures (`capacity.json`, `engines.json`), each engine's output, the expected outputs, the probes' output |
 | `paintings/` | the three paintings, public domain |
 
 ## License

@@ -120,6 +120,21 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-fam
 .trap { display: grid; gap: 10px; max-width: 46rem; min-width: 0; }
 .fix { display: grid; gap: 4px; border-left: 2px solid var(--accent); padding-left: 14px; }
 .refs { display: grid; gap: 12px; padding-left: 1.1rem; margin: 0; max-width: 65ch; }
+/* where it works: what each kind of software does with the file */
+.where { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.where > div { display: grid; gap: 6px; align-content: start; min-width: 0; border-top: 2px solid var(--ignored); padding-top: 10px; }
+.where > div.engine-paints { border-top-color: var(--exact); }
+.where > div.page-paints { border-top-color: var(--accent); }
+.where p { font-size: 0.95rem; }
+@media (max-width: 640px) { .where { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+pre { margin: 0; padding: 14px 16px; background: var(--surface); border: 1px solid var(--rule); overflow-x: auto;
+  font: 0.86rem/1.6 var(--mono); max-width: 100%; }
+pre code { font-size: inherit; }
+pre .c { color: var(--muted); }
+.cmd { display: grid; gap: 8px; min-width: 0; }
+.cmd .row { justify-content: space-between; }
+.copy { font: 500 0.8rem/1 var(--sans); padding: 7px 10px; border: 1px solid var(--rule); background: var(--surface);
+  color: var(--ink); cursor: pointer; }
 cite { font-style: italic; }
 footer { border-top: 1px solid var(--rule); padding-top: 18px; display: grid; gap: 8px; font-size: 0.9rem; color: var(--muted); }
 @media (prefers-reduced-motion: no-preference) { .plate canvas { transition: opacity 120ms ease; } }
@@ -132,8 +147,18 @@ footer { border-top: 1px solid var(--rule); padding-top: 18px; display: grid; ga
     <p class="lede">These PNGs are gradients, and their color profiles are neural networks. Every
       pixel stores its own position, and the profile holds a trained network written as matrices and
       curves, the vocabulary profiles use to describe cameras and screens. A color engine that
-      converts the file runs the network on every pixel and paints a painting. Your browser skips
-      that part of the profile, so it shows the gradient.</p>
+      converts the file runs the network on every pixel and paints a painting.</p>
+    <div class="where" aria-label="Where it works">
+      <div><span class="label">Your browser</span>
+        <p>Shows the gradient. Chrome, Safari and Firefox don't evaluate the part of the profile that
+          holds the network, so they show the pixels as they are stored.</p></div>
+      <div class="engine-paints"><span class="label">A color engine</span>
+        <p>Paints the pictures. ImageMagick runs the network on every pixel, exactly. Pillow, sharp and
+          libvips by default go through a 33-point table and paint them blocky.</p></div>
+      <div class="page-paints"><span class="label">This page</span>
+        <p>Paints with its own JavaScript evaluator of the profile, read from the PNG, not with your
+          browser's color management. It matches LittleCMS to within one code value.</p></div>
+    </div>
   </header>
 
   <section aria-labelledby="viewer-h">
@@ -147,7 +172,7 @@ footer { border-top: 1px solid var(--rule); padding-top: 18px; display: grid; ga
         <div class="frame"><img id="file-img" alt="The carrier PNG as this browser displays it: a gradient of its coordinate pixels"></div>
       </div>
       <div class="plate">
-        <div class="caption"><span class="label">The same file, profile evaluated</span><span class="mono muted" id="render-time"></span></div>
+        <div class="caption"><span class="label">Its profile, run by this page</span><span class="mono muted" id="render-time"></span></div>
         <div class="frame"><canvas id="paint" width="256" height="256" aria-label="The carrier painted by its profile"></canvas></div>
       </div>
     </div>
@@ -166,6 +191,29 @@ footer { border-top: 1px solid var(--rule); padding-top: 18px; display: grid; ga
       <p class="muted" id="mode-note"></p>
     </div>
     <div class="placard" id="placard"></div>
+  </section>
+
+  <section aria-labelledby="run-h">
+    <h2 id="run-h">Run it yourself</h2>
+    <p>Download <a href="gallery/trio.png" download>trio.png</a> (30 KB, its profile embedded) and
+      <a href="sRGB.icc" download>sRGB.icc</a> (540 bytes, a plain sRGB profile), then convert one to
+      the other with ImageMagick:</p>
+    <div class="cmd">
+      <pre><code id="cmd">magick trio.png -profile sRGB.icc painted.png</code>    <span class="c"># ImageMagick 7</span>
+<code>convert trio.png -profile sRGB.icc painted.png</code>   <span class="c"># ImageMagick 6</span></pre>
+      <div class="row"><span class="muted">Homebrew: <code>brew install imagemagick</code>. Debian and Ubuntu: <code>apt install imagemagick</code>.</span>
+        <button class="copy" id="copy-cmd" type="button">Copy the command</button></div>
+    </div>
+    <p><code>painted.png</code> holds the three paintings. To check it against
+      <a href="expected/trio.png" download="trio-expected.png">the expected result</a>, run
+      <code>magick compare -metric AE -fuzz 1% painted.png trio-expected.png null:</code>, which prints
+      0 when the two match to within 1%.</p>
+    <p class="muted">Tested natively with ImageMagick 7.1.2-34 Q16-HDRI (Homebrew, macOS 27.0.1,
+      LittleCMS 2.19.1) and ImageMagick 6.9.12-98 Q16 (Ubuntu 24.04, LittleCMS 2.14, on every push to
+      the repository). The <a href="https://github.com/fMindstormer/iccnet/releases/latest">release</a>
+      bundles every carrier, the expected outputs, each engine's result and SHA-256 checksums, and
+      <a href="https://github.com/fMindstormer/iccnet/blob/main/REPRODUCE.md">REPRODUCE.md</a> covers
+      Pillow and the other engines.</p>
   </section>
 
   <section aria-labelledby="machine-h">
@@ -357,7 +405,7 @@ footer { border-top: 1px solid var(--rule); padding-top: 18px; display: grid; ga
   </section>
 
   <footer>
-    <span>Code, probes and the profiles: <a href="https://github.com/fMindstormer/iccnet">github.com/fMindstormer/iccnet</a> (MIT). Paintings: Leonardo, Vermeer and Hokusai, public domain, via Wikimedia Commons.</span>
+    <span>Code, probes and the profiles: <a href="https://github.com/fMindstormer/iccnet">github.com/fMindstormer/iccnet</a> (MIT), with a <a href="https://github.com/fMindstormer/iccnet/releases/latest">release bundle</a> and <a href="https://github.com/fMindstormer/iccnet/blob/main/REPRODUCE.md">reproduction steps</a>. Paintings: Leonardo, Vermeer and Hokusai, public domain, via Wikimedia Commons.</span>
     <span id="foot-note"></span>
   </footer>
 </div>
@@ -615,6 +663,18 @@ function start() {
   drop.ondragleave = () => drop.classList.remove('over');
   drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) openFile(e.dataTransfer.files[0]); };
   $('file-in').onchange = (e) => e.target.files[0] && openFile(e.target.files[0]);
+  $('copy-cmd').onclick = async () => {
+    const b = $('copy-cmd');
+    try {
+      await navigator.clipboard.writeText($('cmd').textContent);
+      b.textContent = 'Copied';
+    } catch {
+      const r = document.createRange(), sel = getSelection();
+      r.selectNodeContents($('cmd')); sel.removeAllRanges(); sel.addRange(r);
+      b.textContent = 'Selected: copy it with ⌘C or Ctrl+C';
+    }
+    setTimeout(() => { b.textContent = 'Copy the command'; }, 2500);
+  };
   engines();
   capacity();
   setMode('exact');

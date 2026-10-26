@@ -1,12 +1,13 @@
 {
  "carrier": "trio.png",
  "versions": {
-  "littlecms": 2170,
+  "littlecms": 2190,
   "pillow": "11.2.1 (LittleCMS 2.17)",
-  "imagemagick": "ImageMagick 7.1.2-33 Q8 wasm32 211e5b975:20261010 https://imagemagick.org",
+  "imagemagick": "ImageMagick 7.1.2-34 Q16-HDRI aarch64",
+  "imagemagick_wasm": "ImageMagick 7.1.2-33 Q8 wasm32 211e5b975:20261010 https://imagemagick.org",
   "sharp": "0.35.5",
   "libvips": "8.18.7",
-  "tificc": "LittleCMS 2.17",
+  "tificc": "LittleCMS 2.19",
   "colorsync": "ColorSyncProfileVerify: true"
  },
  "engines": {
@@ -46,18 +47,25 @@
    "mean_vs_carrier": 76.7
   },
   "imagemagick": {
-   "label": "ImageMagick 7, -profile (high-res)",
+   "label": "ImageMagick, native, -profile sRGB.icc",
+   "kind": "exact",
+   "mean": 0.25,
+   "max": 0.5,
+   "mean_vs_carrier": 76.7
+  },
+  "imagemagick_wasm": {
+   "label": "ImageMagick 7 WebAssembly, -profile",
    "kind": "exact",
    "mean": 0.25,
    "max": 0.5,
    "mean_vs_carrier": 76.7
   },
   "imagemagick_quantum": {
-   "label": "ImageMagick 7, quantum mode",
+   "label": "ImageMagick 7 WebAssembly, quantum mode",
    "kind": "table",
    "mean": 6.33,
    "max": 175.2,
-   "mean_vs_carrier": 75.41
+   "mean_vs_carrier": 75.42
   },
   "sharp": {
    "label": "sharp (default pipeline)",

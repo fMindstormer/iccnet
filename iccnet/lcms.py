@@ -99,11 +99,12 @@ def transform(src, dst, pixels, fin=RGB_DBL, fout=RGB_DBL, intent=RELATIVE, flag
     return out
 
 
-def render(icc, pixels, path='double', intent=RELATIVE, flags=0):
-    """Carrier pixels (uint8, (..., 3)) through the profile to LittleCMS's sRGB, as 0..1 floats.
-    path: 'double' (what ImageMagick does), '16' or '8' (integer formats, as Pillow, libvips and
-    sharp use; LittleCMS resamples the profile into a table unless flags has NOOPTIMIZE)."""
-    src, dst = Profile(icc), Profile(builtin='srgb')
+def render(icc, pixels, path='double', intent=RELATIVE, flags=0, dst=None):
+    """Carrier pixels (uint8, (..., 3)) through the profile to LittleCMS's sRGB (or to the profile
+    whose bytes are dst), as 0..1 floats. path: 'double' (what ImageMagick does), '16' or '8'
+    (integer formats, as Pillow, libvips and sharp use; LittleCMS resamples the profile into a table
+    unless flags has NOOPTIMIZE)."""
+    src, dst = Profile(icc), Profile(builtin='srgb') if dst is None else Profile(dst)
     px = np.asarray(pixels)
     if path == 'double':
         return transform(src, dst, px / 255.0, RGB_DBL, RGB_DBL, intent, flags)

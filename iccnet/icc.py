@@ -261,6 +261,20 @@ def btoa_srgb():
     return _lut(b'mBA ', ident, np.linalg.inv(SRGB_TO_XYZ) / U1F15, [oetf] * 3)
 
 
+def srgb_matrix_tags():
+    """Plain sRGB as colorants and tone curves: rXYZ/gXYZ/bXYZ and rTRC/gTRC/bTRC."""
+    return ([(s, xyz_tag(SRGB_TO_XYZ[:, i])) for i, s in enumerate(('rXYZ', 'gXYZ', 'bXYZ'))]
+            + [(s, para(3, SRGB_PARAMS)) for s in ('rTRC', 'gTRC', 'bTRC')])
+
+
+def srgb_profile():
+    """A plain sRGB display profile (v4, matrix and tone curves, like LittleCMS's built-in one): the
+    destination in `magick gallery/trio.png -profile sRGB.icc out.png`, so the command needs no
+    profile from the operating system."""
+    return assemble([('desc', mluc('sRGB (iccnet)')), ('cprt', mluc('No copyright, use freely')),
+                     ('wtpt', xyz_tag(D50)), ('chad', sf32_tag(BRADFORD_D65_TO_D50))] + srgb_matrix_tags())
+
+
 def profile(net, desc, fallback='full', cprt='No copyright, use freely'):
     """The published layout, for a network whose outputs are sRGB-encoded values.
 
@@ -281,8 +295,7 @@ def profile(net, desc, fallback='full', cprt='No copyright, use freely'):
     tags = [('desc', mluc(desc)), ('cprt', mluc(cprt)), ('wtpt', xyz_tag(D50)),
             ('chad', sf32_tag(BRADFORD_D65_TO_D50))] + [(s, net_tag) for s in ('D2B0', 'D2B1', 'D2B2', 'D2B3')]
     if fallback in ('matrix', 'full'):
-        tags += [(s, xyz_tag(SRGB_TO_XYZ[:, i])) for i, s in enumerate(('rXYZ', 'gXYZ', 'bXYZ'))]
-        tags += [(s, para(3, SRGB_PARAMS)) for s in ('rTRC', 'gTRC', 'bTRC')]
+        tags += srgb_matrix_tags()
     if fallback in ('lut', 'full'):
         tags += [(s, atob_srgb()) for s in ('A2B0', 'A2B1', 'A2B2')]
         tags += [(s, btoa_srgb()) for s in ('B2A0', 'B2A1', 'B2A2')]

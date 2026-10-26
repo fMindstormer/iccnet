@@ -10,3 +10,4 @@ train_all.log
 pages/dist/
 colorsync
 .DS_Store
+dist/

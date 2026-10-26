@@ -2,7 +2,9 @@
 
 usage: python probe/engines.py <carrier.png> [--figure out.png [--figure-engines a,b,..]] [--json out.json]
        [--save-dir dir] [--engines a,b,..]
-Tools are found through the environment and skipped when missing:
+Every engine converts to sRGB, to the repository's sRGB.icc where it takes a profile file. Tools
+are found through the environment and skipped when missing:
+    magick or convert  a native ImageMagick 7 or 6 on PATH (brew install imagemagick, apt install imagemagick)
     COLORSYNC_PROBE    the binary built from probe/colorsync.swift (macOS)
     NODE_MODULES_ROOT  a directory where `npm install sharp @imagemagick/magick-wasm` was run
     VIPS_PYTHON        a Python with pyvips (pip install "pyvips[binary]")
@@ -26,10 +28,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from iccnet import lcms, png  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+SRGB_ICC = os.path.join(os.path.dirname(HERE), 'sRGB.icc')
 LABELS = {
     'colorsync': 'macOS ColorSync (Safari, Preview)',
-    'imagemagick': 'ImageMagick 7, -profile (high-res)',
-    'imagemagick_quantum': 'ImageMagick 7, quantum mode',
+    'imagemagick': 'ImageMagick, native, -profile sRGB.icc',
+    'imagemagick_wasm': 'ImageMagick 7 WebAssembly, -profile',
+    'imagemagick_quantum': 'ImageMagick 7 WebAssembly, quantum mode',
     'sharp': 'sharp (default pipeline)',
     'libvips': 'libvips icc_transform',
     'pillow': 'Pillow ImageCms (defaults)',
@@ -53,22 +57,28 @@ def run_engines(carrier, wanted):
     h, w, _ = px.shape
     flat = px.reshape(-1, 3)
     out, versions = {}, {'littlecms': lcms.version()}
-    out['lcms_double'] = lcms.render(prof, flat, 'double').reshape(h, w, 3)
-    out['lcms_16'] = lcms.render(prof, flat, '16').reshape(h, w, 3)
-    out['lcms_8'] = lcms.render(prof, flat, '8').reshape(h, w, 3)
+    srgb = open(SRGB_ICC, 'rb').read()
+    for path in ('double', '16', '8'):
+        out[f'lcms_{path}'] = lcms.render(prof, flat, path, lcms.PERCEPTUAL, dst=srgb).reshape(h, w, 3)
     im = Image.open(carrier).convert('RGB')
     src = ImageCms.ImageCmsProfile(io.BytesIO(prof))
-    dst = ImageCms.createProfile('sRGB')
+    dst = ImageCms.ImageCmsProfile(SRGB_ICC)
     out['pillow'] = np.asarray(ImageCms.profileToProfile(im, src, dst), dtype=np.float64) / 255.0
     out['pillow_noopt'] = np.asarray(ImageCms.profileToProfile(im, src, dst, flags=ImageCms.Flags.NOOPTIMIZE),
                                      dtype=np.float64) / 255.0
     versions['pillow'] = f'{Image.__version__} (LittleCMS {ImageCms.core.littlecms_version})'
     with tempfile.TemporaryDirectory() as tmp:
+        magick = shutil.which('magick') or shutil.which('convert')
+        if magick:
+            subprocess.run([magick, carrier, '-profile', SRGB_ICC, os.path.join(tmp, 'im.png')], check=True)
+            banner = subprocess.run([magick, '-version'], capture_output=True, text=True).stdout.splitlines()[0]
+            versions['imagemagick'] = ' '.join(banner.split()[1:5])
+            out['imagemagick'] = load_rgb(os.path.join(tmp, 'im.png'))
         if os.environ.get('NODE_MODULES_ROOT'):
             r = subprocess.run(['node', os.path.join(HERE, 'node.mjs'), os.environ['NODE_MODULES_ROOT'], carrier, tmp],
-                               check=True, capture_output=True, text=True)
+                               check=True, capture_output=True, text=True, env=dict(os.environ, SRGB_ICC=SRGB_ICC))
             versions.update(json.loads(r.stdout.strip().splitlines()[-1]))
-            out['imagemagick'] = load_rgb(os.path.join(tmp, 'im_highres.png'))
+            out['imagemagick_wasm'] = load_rgb(os.path.join(tmp, 'im_highres.png'))
             out['imagemagick_quantum'] = load_rgb(os.path.join(tmp, 'im_quantum.png'))
             out['sharp'] = load_rgb(os.path.join(tmp, 'sharp.png'))
         if os.environ.get('VIPS_PYTHON'):
@@ -81,7 +91,7 @@ def run_engines(carrier, wanted):
             im.save(tif, icc_profile=prof)
             banner = subprocess.run(['tificc'], capture_output=True, text=True)
             versions['tificc'] = (banner.stdout + banner.stderr).splitlines()[0].split('[')[-1].rstrip(']')
-            for key, args in (('tificc', []), ('tificc_c0', ['-c0'])):
+            for key, args in (('tificc', ['-o' + SRGB_ICC]), ('tificc_c0', ['-c0', '-o' + SRGB_ICC])):
                 subprocess.run(['tificc', *args, tif, os.path.join(tmp, f'{key}.tif')], check=True, capture_output=True)
                 out[key] = load_rgb(os.path.join(tmp, f'{key}.tif'))
         if os.environ.get('COLORSYNC_PROBE'):

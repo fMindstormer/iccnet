@@ -1,6 +1,6 @@
 // ImageMagick 7 (its official WebAssembly build) and sharp (libvips) on one carrier PNG.
 // usage: node probe/node.mjs <dir with node_modules: sharp, @imagemagick/magick-wasm> <carrier.png> <out dir>
-// Writes im_highres.png, im_quantum.png (ImageMagick's two transform modes, -profile to sRGB)
+// Writes im_highres.png, im_quantum.png (ImageMagick's two transform modes, -profile to $SRGB_ICC)
 // and sharp.png (sharp's default pipeline, which converts embedded profiles to sRGB).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -20,4 +20,4 @@ for (const [mode, label] of [[im.ColorTransformMode.HighRes, 'highres'], [im.Col
   });
 }
 await sharp(png).png().toFile(join(out, 'sharp.png'));
-console.log(JSON.stringify({ imagemagick: im.Magick.imageMagickVersion, sharp: sharp.versions.sharp, libvips: sharp.versions.vips }));
+console.log(JSON.stringify({ imagemagick_wasm: im.Magick.imageMagickVersion, sharp: sharp.versions.sharp, libvips: sharp.versions.vips }));

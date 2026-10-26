@@ -1,15 +1,28 @@
-"""Build the interactive page into pages/dist/ (published as a Claude artifact).
+"""Build the interactive page into pages/dist/: https://fmindstormer.github.io/iccnet/
 
-    python pages/build.py
-Needs gallery/ and results/capacity.json (publish.py) and results/engines.json plus
-results/engines/<engine>.png (probe/engines.py on gallery/trio.png, see README).
-The page inlines pages/iccnet.js and loads the gallery PNGs, the engine outputs and the capacity
-renders as files published next to it.
+    python pages/build.py              a complete document, for GitHub Pages (.github/workflows/pages.yml)
+    python pages/build.py --artifact   the page without <!doctype>, <head> and <body>, for a Claude
+                                       artifact, whose host adds them
+Needs gallery/ and results/capacity.json (publish.py), results/engines.json plus
+results/engines/<engine>.png (probe/engines.py on gallery/trio.png, see README), and sRGB.icc with
+results/expected/ (release.py). The page inlines pages/iccnet.js and loads the gallery PNGs, the
+engine outputs and the capacity renders as files next to it, where sRGB.icc and the expected
+painting are also offered for download.
 """
+import argparse
 import json
 import os
 import re
 import shutil
+
+DOCUMENT = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+            '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
+            '<meta name="description" content="PNG gradients whose ICC color profiles are neural networks: '
+            'a color engine converting the file paints the Mona Lisa.">\n'
+            '<style>:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); '
+            'padding-bottom: env(safe-area-inset-bottom, 0px) } body { margin: 0 } img { max-width: 100% } '
+            '[hidden] { display: none !important }</style>\n'
+            '{head}</head>\n<body>\n{body}</body>\n</html>\n')
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -33,6 +46,9 @@ def what(r):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--artifact', action='store_true', help='leave out the document skeleton')
+    a = ap.parse_args()
     cap = json.load(open(os.path.join(ROOT, 'results', 'capacity.json')))
     runs = {r['name']: r for r in cap['runs']}
     eng = json.load(open(os.path.join(ROOT, 'results', 'engines.json')))
@@ -45,28 +61,35 @@ def main():
                      psnr=r['paintings'][0]['psnr'], psnr_table=r['paintings'][0]['psnr_table_16bit'])
                 for r in cap['runs'] if r['name'].startswith('mona_')]
     versions = eng['versions']
-    labels = {'colorsync': 'macOS ColorSync (Safari, Preview, Quick Look)', 'imagemagick': 'ImageMagick 7, -profile sRGB.icc',
+    labels = {'colorsync': 'macOS ColorSync (Safari, Preview, Quick Look)', 'imagemagick': 'ImageMagick, -profile sRGB.icc',
               'sharp': 'sharp, default pipeline', 'pillow': 'Pillow ImageCms, default flags',
               'lcms_double': 'LittleCMS in double precision'}
     vtext = {'colorsync': 'macOS 27.0.1',
-             'imagemagick': ' '.join(versions.get('imagemagick', '').split()[:2]) + ', WebAssembly build',
+             'imagemagick': ' '.join(versions.get('imagemagick', '').split()[:3]) + ', native (Homebrew)',
              'sharp': f'sharp {versions.get("sharp", "")}, libvips {versions.get("libvips", "")}',
-             'pillow': versions.get('pillow', ''), 'lcms_double': f'LittleCMS {versions["littlecms"] / 1000:.2f}'}
+             'pillow': 'Pillow ' + versions.get('pillow', ''), 'lcms_double': f'LittleCMS {versions["littlecms"] / 1000:.2f}'}
     engines = [dict(id=k, label=labels[k], version=vtext[k], **{f: eng['engines'][k][f] for f in ('kind', 'mean', 'max')})
                for k in ENGINES if k in eng['engines']]
     data = dict(gallery=gallery, paintings=PAINTINGS, engines=engines, capacity=capacity,
-                note=f'Measured on an Apple M4 with macOS 27.0.1 and LittleCMS {cap["littlecms"] / 1000:.2f}. The paintings above are '
-                     f'painted by this page\'s own evaluator of the profile, which matches LittleCMS in double precision to within '
-                     f'one code value and its 33-point table to within three.')
+                note=f'Measured on an Apple M4 with macOS 27.0.1: the engines with LittleCMS {versions["littlecms"] / 1000:.2f}, '
+                     f'the networks with LittleCMS {cap["littlecms"] / 1000:.2f}. The paintings above are painted by this page\'s '
+                     f'own evaluator of the profile, which matches LittleCMS in double precision to within one code value and its '
+                     f'33-point table to within three.')
 
     js = open(os.path.join(HERE, 'iccnet.js')).read()
     js = re.sub(r'^export (async function|function|const)', r'\1', js, flags=re.M)
     html = open(os.path.join(HERE, 'index.template.html')).read()
     html = html.replace('/*__ICCNET_JS__*/', js).replace('/*__DATA__*/null', json.dumps(data, ensure_ascii=False))
+    if not a.artifact:
+        head, body = html.split('\n<div class="wrap">', 1)
+        head = head.replace('<meta name="claude:viewport-fit-sides" content="cover">\n', '')
+        html = DOCUMENT.replace('{head}', head + '\n').replace('{body}', '<div class="wrap">' + body)
     shutil.rmtree(DIST, ignore_errors=True)
-    for sub in ('gallery', 'engines', 'capacity'):
+    for sub in ('gallery', 'engines', 'capacity', 'expected'):
         os.makedirs(os.path.join(DIST, sub))
     open(os.path.join(DIST, 'index.html'), 'w').write(html)
+    shutil.copy(os.path.join(ROOT, 'sRGB.icc'), DIST)
+    shutil.copy(os.path.join(ROOT, 'results', 'expected', 'trio.png'), os.path.join(DIST, 'expected'))
     for gid, _ in GALLERY:
         shutil.copy(os.path.join(ROOT, 'gallery', f'{gid}.png'), os.path.join(DIST, 'gallery'))
     for k in ENGINES:
